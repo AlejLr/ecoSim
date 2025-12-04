@@ -1,0 +1,14 @@
+[project]
+name = "ecosim"
+version = "0.1.0"
+description = "Agent-based ecosystem simulation using pygame"
+authors = ["Alejandro Lopez Ruiz alej.lopez.ruiz@gmail.com"]
+requires-python = ">=3.8"
+dependencies = [
+"pygame>=2.1.0"
+]
+
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
