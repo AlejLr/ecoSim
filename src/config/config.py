@@ -16,15 +16,6 @@ RENDER = True
 VERBOSE = False
 SAVE_STATS = True
 
-
-# Colors
-colors = {
-    "grass": (0, 255, 0), #light green
-    "forest": (0, 128, 0), #dark green
-    "vegetation": (128, 128, 0), #yellow-green
-    "water": (0, 0, 255)  #blue
-}
-
 # Tiles
 GROWTH_RATE = {
     "grass": 0.1,
@@ -70,3 +61,50 @@ EPSILON_DECAY = 0.99
 EPSILON_MIN = 0.1
 NUM_EPISODES = 500
 CTDE = True
+
+# Reward
+
+ALPHA = 0.5
+BETA = 0.5
+GAMMA = 0.5
+DELTA = 0.5
+EPSILON = 0.1
+
+# Idea is to reward individual agents for their own survival
+# reward = (ALPHA * (energy_gain_this_step) - BETA * (energy_decay) + GAMMA * (alive_bonus))
+
+# And the population for surviving and not dying
+# global_reward = (DELTA * (sum(agent_energies) / num_agents) + EPSILON * (num_dead_agents / total_agents))
+
+colors = {
+    "grass": [
+        (88, 143, 61),
+        (54, 99, 61),
+        (170, 191, 64),
+        (127, 182, 50),
+    ],
+    "forest": [
+        (111, 242, 174),
+        (23, 166, 104),
+        (2, 115, 46),
+        (0, 71, 38),
+    ],
+    "vegetation": [
+        (122, 136, 94),
+        (82, 87, 71),
+        (143, 159, 145),
+        (176, 192, 154),
+    ],
+    "water": [
+        (122, 197, 255),
+        (33, 150, 243),
+        (23, 95, 143),
+        (9, 64, 105),
+    ],
+    "ground": [
+        (237, 152, 124),
+        (209, 123, 115),
+        (191, 95, 95),
+        (168, 74, 94),
+    ]
+}

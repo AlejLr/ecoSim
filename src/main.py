@@ -10,7 +10,7 @@ def main():
     pygame.init()
     
     env = grid_env(GRID_SUBENV[0], GRID_SUBENV[1])
-    env.generate()
+    env.use_test("maps/test_map.png")
     
     surface = pygame.Surface((GRID_SUBENV[0], GRID_SUBENV[1]))
     for x in range(GRID_SUBENV[0]):
