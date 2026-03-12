@@ -5,9 +5,9 @@ GRID_SUBENV = (150, 150)
 SUB_TILE_SIZE = 4
 SUB_GRID_SIZE = (GRID_SUBENV[0] * SUB_TILE_SIZE, GRID_SUBENV[1] * SUB_TILE_SIZE)
 
-GRID_SIZE = (250, 250)
+GRID = (250, 250)
 TILE_SIZE = 3
-GRID_SIZE = (GRID_SIZE[0] * TILE_SIZE, GRID_SIZE[1] * TILE_SIZE)
+GRID_SIZE = (GRID[0] * TILE_SIZE, GRID[1] * TILE_SIZE)
 
 MAX_SIMULATION_STEPS = 1000
 MAX_FPS = 5
@@ -24,9 +24,15 @@ GROWTH_RATE = {
 }
 
 ENERGY_PRODUCTION = {
-    "grass": 1,
-    "forest": 2,
-    "vegetation": 1.5
+    "grass": 200,
+    "forest": 400,
+    "vegetation": 300,
+}
+
+MAX_ENERGY = {
+    "grass": 1000,
+    "forest": 2000,
+    "vegetation": 1500
 }
 
 # Biological parameters
@@ -47,8 +53,8 @@ PREY_MAX_ENERGY = 100
 PREDATOR_MAX_ENERGY = 150
 PREY_ENERGY_DECAY = 1
 PREDATOR_ENERGY_DECAY = 1.5
-PREY_VISION_RADIUS = 5
-PREDATOR_VISION_RADIUS = 10
+PREY_VISION_RADIUS = 4
+PREDATOR_VISION_RADIUS = 6
 
 REPRODUCTION_ENERGY_THRESHOLD = 80
 ACTION_RADIUS = 2
@@ -69,13 +75,13 @@ ALPHA = 0.5
 BETA = 0.5
 GAMMA = 0.5
 DELTA = 0.5
-EPSILON = 0.1
+REWARD_EPSILON = 0.1
 
 # Idea is to reward individual agents for their own survival
 # reward = (ALPHA * (energy_gain_this_step) - BETA * (energy_decay) + GAMMA * (alive_bonus))
 
 # And the population for surviving and not dying
-# global_reward = (DELTA * (sum(agent_energies) / num_agents) - EPSILON * (num_dead_agents / total_agents))
+# global_reward = (DELTA * (sum(agent_energies) / num_agents) - REWARD_EPSILON * (num_dead_agents / total_agents))
 
 colors = {
     "grass": [

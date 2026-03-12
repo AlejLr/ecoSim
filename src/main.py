@@ -42,18 +42,9 @@ def main():
             for y in range(GRID_SUBENV[1]):
                 env.tiles[x][y].grow()
         
-        # Update all agents
+        # Agents take their actions
         for agent in env.agents:        
             agent.test(env)
-        
-        # Handle reproduction
-        new_agents = []
-        for agent in env.agents:
-            offspring = agent.reproduce(env)
-            if offspring:
-                new_agents.append(offspring)
-                env.agent_grid[offspring.position[0], offspring.position[1]] += 1
-        env.agents.extend(new_agents)
         
         # Remove dead agents
         dead_agents = [agent for agent in env.agents if not agent.is_alive()]

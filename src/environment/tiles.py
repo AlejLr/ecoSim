@@ -16,88 +16,42 @@ class tile():
         return 0
     
     def grow(self):
+        """Growth logic for renewable tiles. Override in subclasses."""
         pass
 
-class GrassTile(tile):
-    def __init__(self, x, y):
-        super().__init__(x, y, "grass")
-        self.growth_rate = GROWTH_RATE["grass"]
-        self.energy_production = ENERGY_PRODUCTION["grass"]
-        
-        self.energy = self.energy_production
+class RenewableTile(tile):
+    """Base class for tiles that regenerate energy (grass, forest, vegetation)."""
+    def __init__(self, x, y, tile_type):
+        super().__init__(x, y, tile_type)
+        self.growth_rate = GROWTH_RATE[tile_type]
+        self.energy_production = ENERGY_PRODUCTION[tile_type]
+        self.energy = MAX_ENERGY[tile_type]//2
         self.has_energy = True
         
-        self.counter = 0
-        
     def eat(self):
-        if self.has_energy:
-            self.energy = 0
-            self.has_energy = False
-            return self.energy_production
-        else:
-            return 0
+        """Consume this tile's energy if available."""
+        gain = self.energy
+        self.energy = 0
+        return gain
     
     def grow(self):
-        if not self.has_energy:
-            self.counter += 1
-            if self.counter >= (1 / self.growth_rate):
-                self.energy = self.energy_production
-                self.has_energy = True
-                self.counter = 0
+        """Regenerate energy over time based on growth_rate."""
+        if self.energy < MAX_ENERGY[self.tile_type]:
+            self.energy += self.energy_production * self.growth_rate
+            if self.energy >= MAX_ENERGY[self.tile_type]:
+                self.energy = MAX_ENERGY[self.tile_type]
+
+class GrassTile(RenewableTile):
+    def __init__(self, x, y):
+        super().__init__(x, y, "grass")
         
-class ForestTile(tile):
+class ForestTile(RenewableTile):
     def __init__(self, x, y):
         super().__init__(x, y, "forest")
-        self.growth_rate = GROWTH_RATE["forest"]
-        self.energy_production = ENERGY_PRODUCTION["forest"]
-        
-        self.energy = self.energy_production
-        self.has_energy = True
-        
-        self.counter = 0
-    def eat(self):
-        if self.has_energy:
-            self.energy = 0
-            self.has_energy = False
-            return self.energy_production
-        else:
-            return 0
-        
-    def grow(self):
-        
-        if not self.has_energy:
-            self.counter += 1
-            if self.counter >= (1 / self.growth_rate):
-                self.energy = self.energy_production
-                self.has_energy = True
-                self.counter = 0
                 
-class VegetationTile(tile):
+class VegetationTile(RenewableTile):
     def __init__(self, x, y):
         super().__init__(x, y, "vegetation")
-        self.growth_rate = GROWTH_RATE["vegetation"]
-        self.energy_production = ENERGY_PRODUCTION["vegetation"]
-        
-        self.energy = self.energy_production
-        self.has_energy = True
-        
-        self.counter = 0
-        
-    def eat(self):
-        if self.has_energy:
-            self.energy = 0
-            self.has_energy = False
-            return self.energy_production
-        else:
-            return 0
-
-    def grow(self):
-        if not self.has_energy:
-            self.counter += 1
-            if self.counter >= (1 / self.growth_rate):
-                self.energy = self.energy_production
-                self.has_energy = True
-                self.counter = 0
 
 class WaterTile(tile):
     def __init__(self, x, y):

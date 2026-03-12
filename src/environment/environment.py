@@ -109,3 +109,15 @@ class grid_env():
         pos = agent.position
         if 0 <= pos[0] < self.width and 0 <= pos[1] < self.height:
             self.agent_grid[pos] -= 1
+            
+    def get_tiles_nearby(self, pos, radius) :
+        """Get all tiles within radius."""
+        tiles_nearby = []
+        x, y = pos
+        for dx in range(-radius, radius + 1):
+            for dy in range(-radius, radius + 1):
+                check_x = x + dx
+                check_y = y + dy
+                if 0 <= check_x < self.width and 0 <= check_y < self.height:
+                    tiles_nearby.append(self.tiles[check_x][check_y])
+        return tiles_nearby
