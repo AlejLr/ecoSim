@@ -6,7 +6,17 @@ class tile():
         self.x = x
         self.y = y
         self.tile_type = tile_type
+        self.has_energy = False
         self.color = colors[tile_type][int(random() * len(colors[tile_type]))]
+        
+    def eat(self):
+        return 0
+    
+    def drink(self):
+        return 0
+    
+    def grow(self):
+        pass
 
 class GrassTile(tile):
     def __init__(self, x, y):
@@ -67,6 +77,11 @@ class VegetationTile(tile):
         super().__init__(x, y, "vegetation")
         self.growth_rate = GROWTH_RATE["vegetation"]
         self.energy_production = ENERGY_PRODUCTION["vegetation"]
+        
+        self.energy = self.energy_production
+        self.has_energy = True
+        
+        self.counter = 0
         
     def eat(self):
         if self.has_energy:

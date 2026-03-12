@@ -1,6 +1,6 @@
 import pygame
 import sys
-import random
+from random import random, randint
 
 from config.config import *
 from environment.environment import *
@@ -12,9 +12,18 @@ def main():
     
     env = grid_env(GRID_SUBENV[0], GRID_SUBENV[1])
     env.use_test("maps/test_map.png")
+
+    for _ in range(INITIAL_PREY_NUMBER):
+        x = randint(0, env.width - 1)
+        y = randint(0, env.height - 1)
+        env.agents.append(Prey(position=(x, y)))
+        env.agent_grid[x, y] += 1
     
-    agent = Agent(position=(75, 75), agent_type="prey")
-    env.agents[agent.position[0]][agent.position[1]] = 1
+    for _ in range(INITIAL_PREDATOR_NUMBER):
+        x = randint(0, env.width - 1)
+        y = randint(0, env.height - 1)
+        env.agents.append(Predator(position=(x, y)))
+        env.agent_grid[x, y] += 1
     
     screen = pygame.display.set_mode(SUB_GRID_SIZE)
     pygame.display.set_caption("EcoSim")
@@ -27,9 +36,32 @@ def main():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-                
-        agent.test(env)
         
+        # Update all tiles
+        for x in range(GRID_SUBENV[0]):
+            for y in range(GRID_SUBENV[1]):
+                env.tiles[x][y].grow()
+        
+        # Update all agents
+        for agent in env.agents:        
+            agent.test(env)
+        
+        # Handle reproduction
+        new_agents = []
+        for agent in env.agents:
+            offspring = agent.reproduce(env)
+            if offspring:
+                new_agents.append(offspring)
+                env.agent_grid[offspring.position[0], offspring.position[1]] += 1
+        env.agents.extend(new_agents)
+        
+        # Remove dead agents
+        dead_agents = [agent for agent in env.agents if not agent.is_alive()]
+        for agent in dead_agents:
+            env.remove_agent_from_grid(agent)
+        env.agents = [agent for agent in env.agents if agent.is_alive()]
+
+        # Render environment
         surface = pygame.Surface((GRID_SUBENV[0], GRID_SUBENV[1]))
         for x in range(GRID_SUBENV[0]):
             for y in range(GRID_SUBENV[1]):
@@ -37,10 +69,13 @@ def main():
                 
         scaled_surface = pygame.transform.scale(surface, SUB_GRID_SIZE)
 
-        ax, ay = agent.position
-        scaled_x = int(ax * SUB_TILE_SIZE)
-        scaled_y = int(ay * SUB_TILE_SIZE)
-        pygame.draw.circle(scaled_surface, (255, 255, 255), (scaled_x, scaled_y), 5)
+        # Render all agents
+        for agent in env.agents:
+            ax, ay = agent.position
+            scaled_x = int(ax * SUB_TILE_SIZE)
+            scaled_y = int(ay * SUB_TILE_SIZE)
+            color = (255, 255, 255) if agent.agent_type == "PREY" else (255, 0, 0)
+            pygame.draw.circle(scaled_surface, color, (scaled_x, scaled_y), 5)
 
         screen.blit(scaled_surface, (0, 0))
         pygame.display.flip()

@@ -43,14 +43,15 @@ THIRST_DECAY = 1
 HYDRATION_GAIN_WATER = 20
 DEHYDRATION_PENALTY = 0.2
 
-
-MAX_ENERGY = 100
-ENERGY_DECAY = 1
-ENERGY_GAIN_FOOD = 20
+PREY_MAX_ENERGY = 100
+PREDATOR_MAX_ENERGY = 150
+PREY_ENERGY_DECAY = 1
+PREDATOR_ENERGY_DECAY = 1.5
+PREY_VISION_RADIUS = 5
+PREDATOR_VISION_RADIUS = 10
 
 REPRODUCTION_ENERGY_THRESHOLD = 80
 ACTION_RADIUS = 2
-VISION_RADIUS = 5
 
 # Reinforcement Learning
 
@@ -74,7 +75,7 @@ EPSILON = 0.1
 # reward = (ALPHA * (energy_gain_this_step) - BETA * (energy_decay) + GAMMA * (alive_bonus))
 
 # And the population for surviving and not dying
-# global_reward = (DELTA * (sum(agent_energies) / num_agents) + EPSILON * (num_dead_agents / total_agents))
+# global_reward = (DELTA * (sum(agent_energies) / num_agents) - EPSILON * (num_dead_agents / total_agents))
 
 colors = {
     "grass": [
