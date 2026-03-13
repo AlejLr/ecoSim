@@ -27,7 +27,7 @@ class Agent():
     def decide_action(self, environment):
         pass
     
-    def action(self, action, environment):
+    def action(self, action, position, environment):
         
         # Action will be a dictionary with the action as key and the position as value
         
@@ -38,9 +38,9 @@ class Agent():
             case "move":
                 self.move(action.value, environment)
             case "eat":
-                self.eat(environment)
+                self.eat(position, environment)
             case "drink":
-                self.drink(environment)
+                self.drink(position, environment)
             case "reproduce":
                 self.reproduce(environment)
             case "idle":
@@ -55,16 +55,16 @@ class Agent():
             environment.update_agent_position(self, self.position, (new_x, new_y))
             self.position = (new_x, new_y)
     
-    def eat(self, environment):
+    def eat(self, position, environment):
         """Eat from tiles within ACTION_RADIUS. Override in subclasses."""
         pass
     
-    def drink(self, environment):
+    def drink(self, position, environment):
         """Drink from water tiles within ACTION_RADIUS."""
         for dx in range(-ACTION_RADIUS, ACTION_RADIUS + 1):
             for dy in range(-ACTION_RADIUS, ACTION_RADIUS + 1):
-                tile_x = self.position[0] + dx
-                tile_y = self.position[1] + dy
+                tile_x = position[0] + dx
+                tile_y = position[1] + dy
                 if 0 <= tile_x < environment.width and 0 <= tile_y < environment.height:
                     gain = environment.tiles[tile_x][tile_y].drink()
                     if gain > 0:
@@ -162,12 +162,12 @@ class Prey(Agent):
     def __init__(self, position):
         super().__init__(position, "prey")
         
-    def eat(self, environment):
+    def eat(self, position, environment):
         """Eat from plants within ACTION_RADIUS."""
         for dx in range(-ACTION_RADIUS, ACTION_RADIUS + 1):
             for dy in range(-ACTION_RADIUS, ACTION_RADIUS + 1):
-                tile_x = self.position[0] + dx
-                tile_y = self.position[1] + dy
+                tile_x = position[0] + dx
+                tile_y = position[1] + dy
                 if 0 <= tile_x < environment.width and 0 <= tile_y < environment.height:
                     gain = environment.tiles[tile_x][tile_y].eat()
                     if gain > 0:
