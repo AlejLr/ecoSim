@@ -4,6 +4,7 @@ from config.config import *
 
 class Action():
     def __init__(self, key, value):
+        """Simple class to represent an action, might be removed later if not useful"""
         self.key = key
         self.value = value
 
@@ -16,6 +17,7 @@ class Agent():
         self.vision_radius = PREY_VISION_RADIUS if self.agent_type == "PREY" else PREDATOR_VISION_RADIUS
         
     def test(self, environment):
+        """Movement for the test case, the agent just moves randomly"""
         directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
         diagonals = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
         
@@ -25,12 +27,11 @@ class Agent():
         self.move(choice(directions + diagonals), environment)
     
     def decide_action(self, environment):
+        """Placeholder for the decision-making logic that will happen in the Q-learning algorithm"""
         pass
     
     def action(self, action, position, environment):
-        
-        # Action will be a dictionary with the action as key and the position as value
-        
+        """Execute the given action on the given position in the current environemnt"""
         self.energy -= PREY_ENERGY_DECAY if self.agent_type == "PREY" else PREDATOR_ENERGY_DECAY
         self.thirst -= THIRST_DECAY
         
@@ -47,7 +48,7 @@ class Agent():
                 pass
 
     def move(self, direction, environment):
-        
+        """Move the agent to the given position if within bounds"""
         new_x = self.position[0] + direction[0]
         new_y = self.position[1] + direction[1]
         
@@ -56,11 +57,11 @@ class Agent():
             self.position = (new_x, new_y)
     
     def eat(self, position, environment):
-        """Eat from tiles within ACTION_RADIUS. Override in subclasses."""
+        """Eat from tiles within ACTION_RADIUS, override in subclasses."""
         pass
     
     def drink(self, position, environment):
-        """Drink from water tiles within ACTION_RADIUS."""
+        """Drink from water tiles within ACTION_RADIUS"""
         for dx in range(-ACTION_RADIUS, ACTION_RADIUS + 1):
             for dy in range(-ACTION_RADIUS, ACTION_RADIUS + 1):
                 tile_x = position[0] + dx
@@ -72,7 +73,7 @@ class Agent():
                         return
     
     def get_nearby_agents(self, environment):
-        """Get all agents nearby within vision radius."""
+        """Get all agents nearby within vision radius"""
         return environment.get_agents_nearby(self.position, self.vision_radius)
     
     def reproduce(self, environment):
@@ -87,9 +88,8 @@ class Agent():
     def get_observation(self, environment):
         """Build a local observation dict for Q-learning.
 
-        All values normalized to [0,1]. Spatial info is relative to the agent's
-        current position so the agent learns position-independent policies.
-        The k nearest items per category give a fixed-size state vector.
+        All values normalized to [0,1]. Spatial info is relative to the agent's current position
+        The k nearest items per category give a fixed-size state vector
         """
         max_own_energy = PREY_MAX_ENERGY if self.agent_type == "PREY" else PREDATOR_MAX_ENERGY
 
@@ -116,7 +116,7 @@ class Agent():
         food_tiles.sort(key=lambda t: t[0])
         water_tiles.sort(key=lambda t: t[0])
         top_food  = [(dx, dy, e) for _, dx, dy, e in food_tiles[:3]]
-        top_water = [(dx, dy) for _, dx, dy in water_tiles[:2]]
+        top_water = water_tiles[:2]
         while len(top_food) < 3: top_food.append((0, 0, 0.0))
         while len(top_water) < 2: top_water.append((0, 0))
 
@@ -149,21 +149,26 @@ class Agent():
         state["prey_nearby"] = top_prey
         state["predators_nearby"] = top_predators
 
-        state["position"] = (self.position[0] / environment.width,
-                             self.position[1] / environment.height)
+        state["position"] = (self.position[0] / environment.width, self.position[1] / environment.height)
 
         return state
         
     def is_alive(self):
+        """Returns whether the agent is alive based on its internal levels"""
         return self.energy > 0 and self.thirst > 0
-        
+    
+    def die(self, environment):
+        """Handle the death of the agent"""
+        environment.agents.remove(self)
+        environment.agent_grid[self.position] -= 1
+        environment.agents_by_position[self.position].remove(self)
 
 class Prey(Agent):
     def __init__(self, position):
         super().__init__(position, "prey")
         
     def eat(self, position, environment):
-        """Eat from plants within ACTION_RADIUS."""
+        """Eat the plant from the given position if it's within ACTION_RADIUS and has energy"""
         for dx in range(-ACTION_RADIUS, ACTION_RADIUS + 1):
             for dy in range(-ACTION_RADIUS, ACTION_RADIUS + 1):
                 tile_x = position[0] + dx
@@ -178,23 +183,17 @@ class Predator(Agent):
     def __init__(self, position):
         super().__init__(position, "predator")
         
-    def eat(self, environment, target_position):
+    def eat(self, target_position, environment):
         """Hunt prey at the specified target position"""
         
-        if abs(target_position[0] - self.position[0]) > ACTION_RADIUS or \
-           abs(target_position[1] - self.position[1]) > ACTION_RADIUS:
+        if abs(target_position[0] - self.position[0]) > ACTION_RADIUS or abs(target_position[1] - self.position[1]) > ACTION_RADIUS:
             return
         
-        prey_at_position = [agent for agent in environment.agents
-                           if agent.agent_type == "PREY" 
-                           and agent.position == target_position]
+        prey_at_position = [agent for agent in environment.agents if agent.agent_type == "PREY" and agent.position == target_position]
         
         if prey_at_position:
             prey = prey_at_position[0]
             energy_gained = prey.energy
             prey.energy = 0
             
-            self.energy = min(PREDATOR_MAX_ENERGY, 
-                            self.energy + energy_gained * ENERGY_TRANSFER_EFFICIENCY)
-            
-            environment.remove_agent_from_grid(prey)
+            self.energy = min(PREDATOR_MAX_ENERGY, self.energy + energy_gained * ENERGY_TRANSFER_EFFICIENCY)

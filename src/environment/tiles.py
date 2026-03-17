@@ -10,9 +10,11 @@ class tile():
         self.color = colors[tile_type][int(random() * len(colors[tile_type]))]
         
     def eat(self):
+        """If not overwritten, this tile provides no energy"""
         return 0
     
     def drink(self):
+        """If not overwritten, this tile provides no water"""
         return 0
     
     def grow(self):

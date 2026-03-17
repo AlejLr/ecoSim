@@ -80,9 +80,6 @@ REWARD_EPSILON = 0.1
 # Idea is to reward individual agents for their own survival
 # reward = (ALPHA * (energy_gain_this_step) - BETA * (energy_decay) + GAMMA * (alive_bonus))
 
-# And the population for surviving and not dying
-# global_reward = (DELTA * (sum(agent_energies) / num_agents) - REWARD_EPSILON * (num_dead_agents / total_agents))
-
 colors = {
     "grass": [
         (88, 143, 61),

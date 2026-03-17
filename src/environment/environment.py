@@ -1,5 +1,6 @@
 import numpy as np
 from PIL import Image
+from collections import defaultdict
 
 import config.config as cfg
 from environment.tiles import *
@@ -14,6 +15,7 @@ class grid_env():
         self.tiles = np.empty((width, height), dtype=object)
         self.agent_grid = np.zeros((width, height), dtype=int)
         self.agents = []
+        self.agents_by_position = defaultdict(list)
         
         self.tile_class = {
             "grass": GrassTile,
@@ -79,6 +81,8 @@ class grid_env():
             return False
         self.agent_grid[old_pos] -= 1
         self.agent_grid[new_pos] += 1
+        self.agents_by_position[old_pos].remove(agent)
+        self.agents_by_position[new_pos].append(agent)
         return True
     
     def get_agents_at(self, pos):
@@ -88,28 +92,15 @@ class grid_env():
         return 0
     
     def get_agents_nearby(self, pos, radius):
-        """Get all agents within radius using spatial partitioning via agent_grid."""
+        """Get all agents within a certain radius of a position."""
         agents_nearby = []
-        x, y = pos
-        # Check only nearby grid positions instead of all agents
         for dx in range(-radius, radius + 1):
             for dy in range(-radius, radius + 1):
-                check_x = x + dx
-                check_y = y + dy
-                if 0 <= check_x < self.width and 0 <= check_y < self.height:
-                    # If there are agents at this position, find them
-                    if self.agent_grid[check_x, check_y] > 0:
-                        for agent in self.agents:
-                            if agent.position == (check_x, check_y):
-                                agents_nearby.append(agent)
+                check_pos = (pos[0] + dx, pos[1] + dy)
+                if check_pos in self.agents_by_position:
+                    agents_nearby.extend(self.agents_by_position[check_pos])
         return agents_nearby
-    
-    def remove_agent_from_grid(self, agent):
-        """Remove agent from the agent_grid."""
-        pos = agent.position
-        if 0 <= pos[0] < self.width and 0 <= pos[1] < self.height:
-            self.agent_grid[pos] -= 1
-            
+
     def get_tiles_nearby(self, pos, radius) :
         """Get all tiles within radius."""
         tiles_nearby = []

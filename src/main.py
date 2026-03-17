@@ -18,12 +18,14 @@ def main():
         y = randint(0, env.height - 1)
         env.agents.append(Prey(position=(x, y)))
         env.agent_grid[x, y] += 1
+        env.agents_by_position[(x, y)].append(env.agents[-1])
     
     for _ in range(INITIAL_PREDATOR_NUMBER):
         x = randint(0, env.width - 1)
         y = randint(0, env.height - 1)
         env.agents.append(Predator(position=(x, y)))
         env.agent_grid[x, y] += 1
+        env.agents_by_position[(x, y)].append(env.agents[-1])
     
     screen = pygame.display.set_mode(SUB_GRID_SIZE)
     pygame.display.set_caption("EcoSim")
@@ -49,8 +51,7 @@ def main():
         # Remove dead agents
         dead_agents = [agent for agent in env.agents if not agent.is_alive()]
         for agent in dead_agents:
-            env.remove_agent_from_grid(agent)
-        env.agents = [agent for agent in env.agents if agent.is_alive()]
+            agent.die(env)
 
         # Render environment
         surface = pygame.Surface((GRID_SUBENV[0], GRID_SUBENV[1]))
