@@ -1,5 +1,3 @@
-# EcoSim - Simplified Configuration
-
 # Pygame
 GRID_SUBENV = (150, 150)
 SUB_TILE_SIZE = 4

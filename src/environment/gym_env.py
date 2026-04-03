@@ -1,25 +1,30 @@
-import gym
-from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
 import numpy as np
+import random
 
 from config.config import *
 from environment.environment import grid_env
-from agents.agent import Agent
+from agents.agent import Agent, Prey, Predator
 
 
 class EcoSimEnv(gym.Env):
-    """Simplified EcoSim as a Gym environment for single-agent Q-learning training
+    """EcoSim as a Gym environment for single-agent Q-learning training
     
-    Observation: 4 normalized floats [energy, thirst, food_count, water_count]
+    Main learning agent is typically PREY. Other agents are random actors.
+    
+    Observation: 5 normalized floats [energy, thirst, food_count, water_count, other_agents]
     Action space: 11 discrete actions (0-7: move, 8: eat, 9: drink, 10: idle)
     Reward: energy_gained - step_penalty, or death_penalty on death
     """
     
-    def __init__(self, agent_id=0, num_other_agents=5, map_path=None):
+    def __init__(self, agent_id=0, num_prey=4, num_predators=2, agent_type="PREY", map_path=None):
         super(EcoSimEnv, self).__init__()
         
         self.agent_id = agent_id
-        self.num_other_agents = num_other_agents
+        self.num_prey = num_prey
+        self.num_predators = num_predators
+        self.agent_type = agent_type.upper()
         self.map_path = map_path
         
         # Action space: 8 moves + eat + drink + idle
@@ -44,25 +49,41 @@ class EcoSimEnv(gym.Env):
         else:
             self.env.generate()
         
-        # Create main agent
-        import random
+        # Create main learning agent
         x = random.randint(0, self.env.width - 1)
         y = random.randint(0, self.env.height - 1)
-        self.agent = Agent(self.agent_id, (x, y))
+        
+        if self.agent_type == "PREY":
+            self.agent = Prey(self.agent_id, (x, y))
+        else:
+            self.agent = Predator(self.agent_id, (x, y))
+        
         self.env.agents.append(self.agent)
         self.env.agent_grid[x, y] += 1
         self.env.agents_by_position[(x, y)].append(self.agent)
         
-        # Create other agents (dummy agents that don't learn)
+        # Create other agents (random actors, not learning)
         self.other_agents = []
-        for i in range(self.num_other_agents):
+        
+        # Add prey
+        for i in range(self.num_prey):
             x = random.randint(0, self.env.width - 1)
             y = random.randint(0, self.env.height - 1)
-            other_agent = Agent(self.agent_id + i + 1, (x, y))
-            self.other_agents.append(other_agent)
-            self.env.agents.append(other_agent)
+            prey = Prey(self.agent_id + i + 1, (x, y))
+            self.other_agents.append(prey)
+            self.env.agents.append(prey)
             self.env.agent_grid[x, y] += 1
-            self.env.agents_by_position[(x, y)].append(other_agent)
+            self.env.agents_by_position[(x, y)].append(prey)
+        
+        # Add predators
+        for i in range(self.num_predators):
+            x = random.randint(0, self.env.width - 1)
+            y = random.randint(0, self.env.height - 1)
+            pred = Predator(self.agent_id + self.num_prey + i + 1, (x, y))
+            self.other_agents.append(pred)
+            self.env.agents.append(pred)
+            self.env.agent_grid[x, y] += 1
+            self.env.agents_by_position[(x, y)].append(pred)
         
         self.steps = 0
         self.agent.episode_reward = 0
@@ -82,16 +103,6 @@ class EcoSimEnv(gym.Env):
         for other_agent in self.other_agents:
             if other_agent.is_alive():
                 other_agent.test(self.env)
-            else:
-                # Dead agents might respawn or just be removed
-                pass
-        
-        # Grow tiles (if needed)
-        for x in range(self.env.width):
-            for y in range(self.env.height):
-                tile = self.env.tiles[x][y]
-                if hasattr(tile, 'grow'):
-                    tile.grow()
         
         # Check if agent died
         done = not self.agent.is_alive()
@@ -114,18 +125,8 @@ class EcoSimEnv(gym.Env):
         return obs, reward, done, info
     
     def _get_obs(self):
-        """Get observation from agent"""
-        obs_dict = self.agent.get_observation(self.env)
-        
-        # Convert dict to numpy array in consistent order
-        obs_array = np.array([
-            obs_dict["energy"],
-            obs_dict["thirst"],
-            obs_dict["food_nearby"],
-            obs_dict["water_nearby"],
-            obs_dict["other_agents_nearby"]
-        ], dtype=np.float32)
-        
+        """Get observation from agent - returns numpy array"""
+        obs_array = self.agent.get_observation(self.env)
         return obs_array
     
     def render(self, mode='human'):
