@@ -6,7 +6,7 @@ from config.config import *
 from environment.environment import *
 from agents.agent import *
 
-
+"""
 def main():
     pygame.init()
     
@@ -78,3 +78,4 @@ def main():
         
 if __name__ == "__main__":
     main()
+"""

@@ -19,18 +19,22 @@ class grid_env():
         
         self.tile_class = {
             "grass": GrassTile,
-            "forest": ForestTile,
-            "vegetation": VegetationTile,
             "water": WaterTile,
-            "ground": GroundTile
+            "empty": EmptyTile
         }
         
     def generate(self):
         """Randomly generate the environment grid with different tile types."""
+        from config.config import TILE_DISTRIBUTION
+        
+        tile_types = list(TILE_DISTRIBUTION.keys())
+        tile_probs = list(TILE_DISTRIBUTION.values())
+        
         for x in range(self.width):
             for y in range(self.height):
-                tile_type = np.random.choice(list(self.tile_class.values()))
-                self.tiles[x][y] = tile_type(x, y)
+                tile_type = np.random.choice(tile_types, p=tile_probs)
+                tile_class = self.tile_class[tile_type]
+                self.tiles[x][y] = tile_class(x, y)
                 self.grid[x][y] = self.tiles[x][y].color
                 
     def use_test(self, path):

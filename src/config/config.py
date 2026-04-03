@@ -1,13 +1,9 @@
-# Configuration file for EcoSim
+# EcoSim - Simplified Configuration
 
 # Pygame
 GRID_SUBENV = (150, 150)
 SUB_TILE_SIZE = 4
 SUB_GRID_SIZE = (GRID_SUBENV[0] * SUB_TILE_SIZE, GRID_SUBENV[1] * SUB_TILE_SIZE)
-
-GRID = (250, 250)
-TILE_SIZE = 3
-GRID_SIZE = (GRID[0] * TILE_SIZE, GRID[1] * TILE_SIZE)
 
 MAX_SIMULATION_STEPS = 1000
 MAX_FPS = 5
@@ -16,99 +12,48 @@ RENDER = True
 VERBOSE = False
 SAVE_STATS = True
 
-# Tiles
-GROWTH_RATE = {
-    "grass": 0.1,
-    "forest": 0.05,
-    "vegetation": 0.08
+# ENVIRONMENT
+GRASS_ENERGY = 50
+WATER_HYDRATION = 20
+
+TILE_DISTRIBUTION = {
+    "grass": 0.7,
+    "water": 0.2,
+    "empty": 0.1
 }
 
-ENERGY_PRODUCTION = {
-    "grass": 200,
-    "forest": 400,
-    "vegetation": 300,
-}
-
-MAX_ENERGY = {
-    "grass": 1000,
-    "forest": 2000,
-    "vegetation": 1500
-}
-
-# Biological parameters
-
-ENERGY_TRANSFER_EFFICIENCY = 0.1
-
-# Agents
-
-INITIAL_PREY_NUMBER = 10
-INITIAL_PREDATOR_NUMBER = 5
-
+# AGENTS
+NUM_AGENTS = 10                 # Total agents in environment
+MAX_AGENT_ENERGY = 100          # All agents have same max energy
+ENERGY_DECAY_PER_STEP = 1       # Agents lose 1 energy per step
 MAX_THIRST = 100
-THIRST_DECAY = 1
-HYDRATION_GAIN_WATER = 20
-DEHYDRATION_PENALTY = 0.2
+THIRST_DECAY_PER_STEP = 1       # Agents lose 1 thirst per step
+VISION_RADIUS = 4               # All agents can see 4 tiles away
+ACTION_RADIUS = 2               # All agents can act within 2 tiles
 
-PREY_MAX_ENERGY = 100
-PREDATOR_MAX_ENERGY = 150
-PREY_ENERGY_DECAY = 1
-PREDATOR_ENERGY_DECAY = 1.5
-PREY_VISION_RADIUS = 4
-PREDATOR_VISION_RADIUS = 6
+# REINFORCEMENT LEARNING
+LEARNING_RATE = 0.1             # Q-learning alpha
+DISCOUNT_FACTOR = 0.95          # Q-learning gamma
+EPSILON_START = 1.0             # Exploration factor (start at 100% random)
+EPSILON_DECAY = 0.995           # Decay exploration each episode
+EPSILON_MIN = 0.01              # Don't go below 1% random
+NUM_EPISODES = 1000             # Total training episodes
+STEPS_PER_EPISODE = 500         # Max steps per episode
 
-REPRODUCTION_ENERGY_THRESHOLD = 80
-ACTION_RADIUS = 2
 
-# Reinforcement Learning
+# REWARDS
+ENERGY_REWARD_SCALE = 1.0       # Reward = energy_gained * scale
+DEATH_PENALTY = -10             # Penalty for dying
+STEP_PENALTY = -0.01            # Small penalty per step (encourage efficiency)
+SURVIVE_BONUS = 0.1             # Small bonus for staying alive
 
-LEARNING_RATE = 0.1
-DISCOUNT_FACTOR = 0.95
-EPSILON_START = 1.0
-EPSILON_DECAY = 0.99
-EPSILON_MIN = 0.1
-NUM_EPISODES = 500
-CTDE = True
-
-# Reward
-
-ALPHA = 0.5
-BETA = 0.5
-GAMMA = 0.5
-DELTA = 0.5
-REWARD_EPSILON = 0.1
-
-# Idea is to reward individual agents for their own survival
-# reward = (ALPHA * (energy_gain_this_step) - BETA * (energy_decay) + GAMMA * (alive_bonus))
-
+# COLORS
 colors = {
-    "grass": [
-        (88, 143, 61),
-        (54, 99, 61),
-        (170, 191, 64),
-        (127, 182, 50),
-    ],
-    "forest": [
-        (111, 242, 174),
-        (23, 166, 104),
-        (2, 115, 46),
-        (0, 71, 38),
-    ],
-    "vegetation": [
-        (122, 136, 94),
-        (82, 87, 71),
-        (143, 159, 145),
-        (176, 192, 154),
-    ],
-    "water": [
-        (122, 197, 255),
-        (33, 150, 243),
-        (23, 95, 143),
-        (9, 64, 105),
-    ],
-    "ground": [
-        (237, 152, 124),
-        (209, 123, 115),
-        (191, 95, 95),
-        (168, 74, 94),
-    ]
+    "grass": (88, 143, 61),
+    "water": (122, 197, 255),
+    "empty": (200, 200, 200),
 }
+
+# Agent rendering colors
+AGENT_COLOR_ALIVE = (255, 255, 255)
+AGENT_COLOR_SELECTED = (255, 0, 0)
