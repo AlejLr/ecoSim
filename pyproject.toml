@@ -2,11 +2,24 @@
 name = "ecosim"
 version = "0.1.0"
 description = "Agent-based ecosystem simulation using pygame"
-authors = ["Alejandro Lopez Ruiz alej.lopez.ruiz@gmail.com"]
-requires-python = ">=3.8"
-dependencies = [
-"pygame>=2.1.0"
+authors = [
+    {name = "Alejandro Lopez Ruiz", email = "alej.lopez.ruiz@gmail.com"}
 ]
+requires-python = ">=3.10"
+dependencies = [
+    "pygame>=2.1.0",
+    "gymnasium>=0.27.0",
+    "numpy>=1.20",
+    "pandas>=1.3",
+    "scipy>=1.7",
+    "matplotlib>=3.5",
+    "pillow>=8.0",
+    "seaborn>=0.12"
+]
+
+[project.optional-dependencies]
+deeplearning = ["torch>=1.12"]
+bayesian = ["pymc>=4.0"]
 
 
 [build-system]

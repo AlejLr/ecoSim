@@ -2,6 +2,8 @@
 __pycache__/
 *.py[codz]
 *$py.class
+*.pkl
+src/training_results.png
 
 # C extensions
 *.so

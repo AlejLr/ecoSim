@@ -2,7 +2,6 @@ import numpy as np
 from PIL import Image
 from collections import defaultdict
 
-import config.config as cfg
 from environment.tiles import *
 
 class grid_env():
@@ -67,17 +66,16 @@ class grid_env():
         closest_tile = None
         min_dist = float('inf')
 
-        for tile_type, valid_colors in colors.items():
-            for ref_color in valid_colors:
-                dist = np.linalg.norm(np.array(color) - np.array(ref_color))
-                if dist < min_dist and dist <= threshold:
-                    min_dist = dist
-                    closest_tile = tile_type
+        for tile_type, ref_color in colors.items():
+            dist = np.linalg.norm(np.array(color) - np.array(ref_color))
+            if dist < min_dist:
+                min_dist = dist
+                closest_tile = tile_type
 
-        if closest_tile is not None:
-            return closest_tile
+        if closest_tile is None:
+            raise ValueError(f"Color {color} does not match any known tile type (min_dist={min_dist:.2f})")
 
-        raise ValueError(f"Color {color} does not match any known tile type (min_dist={min_dist:.2f})")
+        return closest_tile
     
     def update_agent_position(self, agent, old_pos, new_pos):
         """Update agent's position in the agent_grid."""

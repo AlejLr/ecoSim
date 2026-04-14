@@ -7,12 +7,13 @@ Simple training loop for single-agent Q-learning in a multi-agent environment.
 from environment.gym_env import EcoSimEnv
 from models.Q_learning import QLearningAgent, train_agent, evaluate_agent
 import numpy as np
+from pathlib import Path
 
 
 def main():
     # Create environment and agent
     print("Initializing environment...")
-    env = EcoSimEnv(agent_id=0, num_other_agents=5, map_path="maps/test_map.png")
+    env = EcoSimEnv(agent_id=0, num_prey=4, num_predators=2, map_path=None)
     
     print("Initializing Q-Learning agent...")
     agent = QLearningAgent(agent_id=0, num_actions=11, num_states=675)
@@ -50,14 +51,19 @@ def main():
         plt.grid(True)
         
         plt.tight_layout()
-        plt.savefig('training_results.png')
-        print("\nTraining plots saved to 'training_results.png'")
+        plot_path = Path(__file__).resolve().parent / "training_results.png"
+        plt.savefig(plot_path)
+        print(f"\nTraining plots saved to '{plot_path}'")
     except ImportError:
         print("(Matplotlib not installed, skipping plots)")
     
     # Save model
     print("\nSaving trained model...")
-    agent.save_model("models/trained_agent.pkl")
+    output_dir = Path(__file__).resolve().parent / "models"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    model_path = output_dir / "trained_agent.pkl"
+    agent.save_model(str(model_path))
+    print(f"Model saved to '{model_path}'")
     
     # Evaluate agent
     print("\n" + "="*60)

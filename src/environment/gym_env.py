@@ -5,7 +5,7 @@ import random
 
 from config.config import *
 from environment.environment import grid_env
-from agents.agent import Agent, Prey, Predator
+from agents.agent import Prey, Predator
 
 
 class EcoSimEnv(gym.Env):

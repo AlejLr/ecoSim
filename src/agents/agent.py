@@ -2,14 +2,6 @@ from random import choice
 
 from config.config import *
 
-
-class Action():
-    """Simple class to (probably) represent an action"""
-    def __init__(self, key, value):
-        self.key = key
-        self.value = value
-
-
 class Agent():
     """Base agent class"""
     def __init__(self, agent_id, position, agent_type):

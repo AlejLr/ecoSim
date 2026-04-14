@@ -7,7 +7,7 @@ from collections import defaultdict
 
 from config.config import *
 from environment.environment import grid_env
-from agents.agent import Agent, Prey, Predator
+from agents.agent import Prey, Predator
 from models.Q_learning import QLearningAgent
 
 
@@ -43,8 +43,6 @@ class MultiAgentEcoSimEnv(gym.Env):
         # Track metrics per species
         self.prey_rewards = defaultdict(float)  # agent_id -> total reward
         self.predator_rewards = defaultdict(float)
-        self.agent_states = {}  # Store state for Q-learning update
-        self.agent_prev_obs = {}
         
     def reset(self):
         """Reset environment with multi-agent setup"""
@@ -58,8 +56,6 @@ class MultiAgentEcoSimEnv(gym.Env):
         
         # Create all learning agents
         self.all_agents = []
-        self.agent_states.clear()
-        self.agent_prev_obs.clear()
         agent_counter = 0
         
         # Create prey
@@ -90,12 +86,6 @@ class MultiAgentEcoSimEnv(gym.Env):
         self.prey_rewards.clear()
         self.predator_rewards.clear()
         
-        # Store initial observations
-        for agent in self.all_agents:
-            self.agent_prev_obs[agent.agent_id] = agent.get_observation(self.env)
-            state = agent.q_learning.discretize_state(self.agent_prev_obs[agent.agent_id])
-            self.agent_states[agent.agent_id] = (state, None)  # (state, last_action)
-        
         # Return observation of all agents (for compatibility, return first agent's obs)
         if self.all_agents:
             return self.all_agents[0].get_observation(self.env)
@@ -119,26 +109,10 @@ class MultiAgentEcoSimEnv(gym.Env):
         if not alive_agents:
             return np.zeros(5, dtype=np.float32), 0, True, {}
         
-        # First, update Q-tables for agents based on previous transitions
-        for agent in alive_agents:
-            prev_state, prev_action = self.agent_states.get(agent.agent_id, (None, None))
-            if prev_state is not None and prev_action is not None:
-                # This is a continuation - update from previous step
-                current_obs = agent.get_observation(self.env)
-                current_state = agent.q_learning.discretize_state(current_obs)
-                reward = agent.episode_reward - getattr(agent, '_prev_episode_reward', 0)
-                
-                agent.q_learning.update(
-                    prev_state, 
-                    prev_action, 
-                    reward, 
-                    current_state, 
-                    not agent.is_alive()
-                )
-        
-        # All agents take new actions
+        # All agents take actions and learn immediately
         for agent in alive_agents:
             if agent.is_alive():
+                # Get current state and observation
                 obs = agent.get_observation(self.env)
                 state = agent.q_learning.discretize_state(obs)
                 
@@ -148,13 +122,16 @@ class MultiAgentEcoSimEnv(gym.Env):
                 else:
                     action = agent.q_learning.select_action(state, training=True)
                 
-                # Store for next update
-                agent._prev_episode_reward = agent.episode_reward
-                self.agent_states[agent.agent_id] = (state, action)
-                
-                # Execute action
+                # Execute action and get immediate reward
                 reward = agent.action(action, self.env)
                 agent.episode_reward += reward
+                
+                # Get next state after action
+                next_obs = agent.get_observation(self.env)
+                next_state = agent.q_learning.discretize_state(next_obs)
+                
+                # Update Q-table IMMEDIATELY (not deferred)
+                agent.q_learning.update(state, action, reward, next_state, not agent.is_alive())
                 
                 # Track by species
                 if agent.agent_type == "PREY":
@@ -166,20 +143,17 @@ class MultiAgentEcoSimEnv(gym.Env):
         for agent in alive_agents:
             agent.q_learning.decay_epsilon()
         
-        # Check if episode should end
+        # Advance episode
         self.steps += 1
-        done = self.steps >= STEPS_PER_EPISODE or len(alive_agents) == 0
         
-        # Clean up dead agents
+        # Clean up dead agents (Q-table already updated during step)
         dead_agents = [a for a in self.all_agents if not a.is_alive()]
         for dead_agent in dead_agents:
-            # Update Q-table for death
-            prev_state, prev_action = self.agent_states.get(dead_agent.agent_id, (None, None))
-            if prev_state is not None and prev_action is not None:
-                dead_state = dead_agent.q_learning.discretize_state(np.zeros(5, dtype=np.float32))
-                dead_agent.q_learning.update(prev_state, prev_action, DEATH_PENALTY, dead_state, True)
-            
             dead_agent.die(self.env)
+
+        # Recompute alive agents after cleanup for consistent done/info
+        alive_agents = [a for a in self.all_agents if a.is_alive()]
+        done = self.steps >= STEPS_PER_EPISODE or len(alive_agents) == 0
         
         # Return main agent's observation (for compatibility)
         if alive_agents:
