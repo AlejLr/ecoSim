@@ -8,15 +8,22 @@ from config.config import *
 class QLearningAgent:
     """Tabular Q-Learning agent with discretized state space
     
-    State discretization:
-    - energy bucket: 5 levels [0, 0.2, 0.4, 0.6, 0.8, 1.0]
-    - thirst bucket: 5 levels [0, 0.2, 0.4, 0.6, 0.8, 1.0]
-    - food_nearby bucket: 3 levels [low, medium, high]
-    - water_nearby bucket: 3 levels [low, medium, high]
-    - other_agents bucket: 3 levels [none, some, many]
+    Both PREY and PREDATOR agents use identical 6-dimensional observations:
+    [energy, thirst, target_distance, target_dir_x, target_dir_y, target_detected]
     
-    Total state space: 5 × 5 × 3 × 3 × 3 = 675 states
-    Action space: 11 actions
+    PREY: target = nearest predator (focus on survival)
+    PREDATOR: target = nearest prey (focus on hunting)
+    
+    Discretization:
+    - energy: 5 levels [0, 0.2, 0.4, 0.6, 0.8, 1.0]
+    - thirst: 5 levels [0, 0.2, 0.4, 0.6, 0.8, 1.0]
+    - target_distance: 3 levels [close, medium, far]
+    - target_dir_x: 3 levels [left, center, right]
+    - target_dir_y: 3 levels [up, center, down]
+    - target_detected: 2 levels [not detected, detected]
+    
+    Total state space: 5 × 5 × 3 × 3 × 3 × 2 = 2,250 states
+    Action space: 11 actions (8 moves + eat + drink + idle)
     """
     
     def __init__(self, agent_id=0, num_actions=11, num_states=675):
@@ -39,17 +46,20 @@ class QLearningAgent:
     def discretize_state(self, obs):
         """Convert continuous observation to discrete state
         
-        obs: numpy array [energy, thirst, food_nearby, water_nearby, other_agents_nearby]
+        obs: numpy array [energy, thirst, target_distance, target_dir_x, target_dir_y, target_detected]
         returns: state tuple for Q-table indexing
+        
+        State space: 5 × 5 × 3 × 3 × 3 × 2 = 2,250 states
         """
         # Ensure obs is normalized [0, 1]
         energy = int(np.clip(obs[0] * 5, 0, 4))
         thirst = int(np.clip(obs[1] * 5, 0, 4))
-        food = int(np.clip(obs[2] * 3, 0, 2))
-        water = int(np.clip(obs[3] * 3, 0, 2))
-        agents = int(np.clip(obs[4] * 3, 0, 2))
+        target_distance = int(np.clip(obs[2] * 3, 0, 2))
+        direction_x = int(np.clip(obs[3] * 3, 0, 2))
+        direction_y = int(np.clip(obs[4] * 3, 0, 2))
+        target_detected = int(np.clip(obs[5], 0, 1))
         
-        return (energy, thirst, food, water, agents)
+        return (energy, thirst, target_distance, direction_x, direction_y, target_detected)
     
     def select_action(self, state, training=True):
         """Epsilon-greedy action selection
@@ -87,19 +97,33 @@ class QLearningAgent:
         self.epsilon = max(EPSILON_MIN, self.epsilon * EPSILON_DECAY)
     
     def save_model(self, filepath):
-        """Save Q-table to file"""
+        """Save Q-table and metadata to file"""
         import pickle
+        model_data = {
+            'q_table': dict(self.q_table),
+            'num_actions': self.num_actions,
+            'num_states': self.num_states
+        }
         with open(filepath, 'wb') as f:
-            pickle.dump(dict(self.q_table), f)
+            pickle.dump(model_data, f)
         print(f"Model saved to {filepath}")
     
-    def load_model(self, filepath):
-        """Load Q-table from file"""
+    @staticmethod
+    def load_model_from_file(filepath):
+        """Load Q-table and metadata from file and return agent"""
         import pickle
         with open(filepath, 'rb') as f:
-            q_dict = pickle.load(f)
-            self.q_table = defaultdict(lambda: np.zeros(self.num_actions), q_dict)
-        print(f"Model loaded from {filepath}")
+            model_data = pickle.load(f)
+        
+        # Create new agent with saved metadata
+        agent = QLearningAgent(
+            agent_id=0, 
+            num_actions=model_data['num_actions'],
+            num_states=model_data['num_states']
+        )
+        # Populate q_table with saved values
+        agent.q_table = defaultdict(lambda: np.zeros(agent.num_actions), model_data['q_table'])
+        return agent
 
 
 def train_agent(env, agent, num_episodes=None):
@@ -118,6 +142,9 @@ def train_agent(env, agent, num_episodes=None):
     episode_steps = []
     
     for episode in range(num_episodes):
+        if episode % 10 == 0:
+            print(f"  Starting episode {episode + 1}...", end=' ', flush=True)
+        
         obs = env.reset()
         state = agent.discretize_state(obs)
         
@@ -149,6 +176,8 @@ def train_agent(env, agent, num_episodes=None):
         if (episode + 1) % 50 == 0:
             avg_reward = np.mean(episode_rewards[-50:])
             print(f"Episode {episode + 1}/{num_episodes} | Avg Reward: {avg_reward:.2f} | Epsilon: {agent.epsilon:.4f}")
+        elif (episode + 1) % 10 == 0:
+            print("done")
     
     return episode_rewards, episode_steps
 

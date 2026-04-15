@@ -32,13 +32,15 @@ class MultiAgentEcoSimEnv(gym.Env):
         # Action space: 8 moves + eat + drink + idle
         self.action_space = spaces.Discrete(11)
         
-        # Observation space: [energy, thirst, food_nearby, water_nearby, other_agents]
-        self.observation_space = spaces.Box(low=0, high=1, shape=(5,), dtype=np.float32)
+        # Observation space: [energy, thirst, target_distance, target_dir_x, target_dir_y, target_detected]
+        # Same for both prey and predator (6 dims)
+        self.observation_space = spaces.Box(low=0, high=1, shape=(6,), dtype=np.float32)
         
         # Initialize environment
         self.env = None
         self.all_agents = []  # All agents that learn
         self.steps = 0
+        self.next_agent_id = 1000  # Start offspring IDs high to avoid conflicts
         
         # Track metrics per species
         self.prey_rewards = defaultdict(float)  # agent_id -> total reward
@@ -150,6 +152,24 @@ class MultiAgentEcoSimEnv(gym.Env):
         dead_agents = [a for a in self.all_agents if not a.is_alive()]
         for dead_agent in dead_agents:
             dead_agent.die(self.env)
+        
+        # Handle reproduction for all prey agents
+        offspring_list = []
+        for agent in self.all_agents:
+            if agent.is_alive() and hasattr(agent, 'reproduce') and agent.agent_type == "PREY":
+                offspring = agent.reproduce(self.env, self.next_agent_id)
+                if offspring is not None:
+                    offspring_list.append(offspring)
+                    self.next_agent_id += 1
+        
+        # Add offspring to environment and all_agents list
+        for offspring in offspring_list:
+            offspring.q_learning = QLearningAgent(agent_id=offspring.agent_id, num_actions=11, num_states=675)
+            self.all_agents.append(offspring)
+            self.env.agents.append(offspring)
+            x, y = offspring.position
+            self.env.agent_grid[x, y] += 1
+            self.env.agents_by_position[(x, y)].append(offspring)
 
         # Recompute alive agents after cleanup for consistent done/info
         alive_agents = [a for a in self.all_agents if a.is_alive()]

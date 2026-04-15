@@ -48,6 +48,18 @@ class Agent():
         # Add base penalty per step
         immediate_reward += STEP_PENALTY
         
+        # Predator bonus: +1 reward for detecting prey
+        if self.agent_type == "PREDATOR":
+            obs = self.get_observation(environment)
+            if obs[5] > 0:  # prey_detected
+                immediate_reward += 1.0
+        
+        # Prey penalty: -1 reward for detecting predator (encourages avoidance/exploration)
+        elif self.agent_type == "PREY":
+            obs = self.get_observation(environment)
+            if obs[5] > 0:  # pred_detected
+                immediate_reward -= 1.0
+        
         return immediate_reward
 
     def decay_resources(self):
@@ -89,8 +101,14 @@ class Agent():
     def get_observation(self, environment):
         """Build observation state for Q-learning: normalized [0,1] values
         
-        Returns numpy array with 5 floats:
-        [energy, thirst, food_nearby, water_nearby, other_agents_nearby]
+        For PREY (6 dims): [energy, thirst, pred_distance, pred_dir_x, pred_dir_y, pred_detected]
+                          Focus on survival - track nearest predator
+                          (Food is abundant everywhere, not critical)
+        
+        For PREDATOR (6 dims): [energy, thirst, prey_distance, prey_dir_x, prey_dir_y, prey_detected]
+                              Track and hunt prey
+        
+        Returns numpy array with 6 floats.
         """
         import numpy as np
         
@@ -98,19 +116,61 @@ class Agent():
         energy_norm = self.energy / MAX_AGENT_ENERGY
         thirst_norm = self.thirst / MAX_THIRST
         
-        # Count resources in vision
-        nearby_tiles = environment.get_tiles_nearby(self.position, self.vision_radius)
-        food_count = sum(1 for t in nearby_tiles if t.has_energy)
-        water_count = sum(1 for t in nearby_tiles if t.tile_type == "water")
-        
-        food_norm = food_count / (len(nearby_tiles) + 1)  # Normalize by total tiles
-        water_norm = water_count / (len(nearby_tiles) + 1)
-        
-        # Count other agents
-        nearby_agents = self.get_nearby_agents(environment)
-        agents_norm = len(nearby_agents) / max(1, len(environment.agents))
-        
-        return np.array([energy_norm, thirst_norm, food_norm, water_norm, agents_norm], dtype=np.float32)
+        if self.agent_type == "PREY":
+            # PREY observation: focus on avoiding nearest predator
+            # Food is abundant (70% grass), so survival takes priority
+            pred_distance_norm = 1.0
+            pred_dir_x = 0.5
+            pred_dir_y = 0.5
+            pred_detected = 0
+            
+            # Find nearest predator
+            nearby_agents = self.get_nearby_agents(environment)
+            predators = [a for a in nearby_agents if a.agent_type == "PREDATOR"]
+            
+            if predators:
+                # Find closest predator
+                closest_pred = min(predators, key=lambda a:
+                    abs(a.position[0] - self.position[0]) + abs(a.position[1] - self.position[1]))
+                
+                dx = closest_pred.position[0] - self.position[0]
+                dy = closest_pred.position[1] - self.position[1]
+                distance = (abs(dx) + abs(dy)) / (2 * self.vision_radius)
+                
+                pred_distance_norm = min(1.0, distance)
+                pred_dir_x = np.clip((dx / self.vision_radius + 1) / 2, 0, 1)
+                pred_dir_y = np.clip((dy / self.vision_radius + 1) / 2, 0, 1)
+                pred_detected = 1 if distance < 0.5 else 0
+            
+            return np.array([energy_norm, thirst_norm, pred_distance_norm, 
+                            pred_dir_x, pred_dir_y, pred_detected], dtype=np.float32)
+            
+        else:  # PREDATOR
+            # PREDATOR observation: find nearest prey
+            target_distance_norm = 1.0
+            direction_x_norm = 0.5
+            direction_y_norm = 0.5
+            target_detected = 0
+            
+            nearby_agents = self.get_nearby_agents(environment)
+            prey_list = [a for a in nearby_agents if a.agent_type == "PREY"]
+            
+            if prey_list:
+                # Find closest prey
+                closest = min(prey_list, key=lambda a:
+                    abs(a.position[0] - self.position[0]) + abs(a.position[1] - self.position[1]))
+                
+                dx = closest.position[0] - self.position[0]
+                dy = closest.position[1] - self.position[1]
+                distance = (abs(dx) + abs(dy)) / (2 * self.vision_radius)
+                
+                target_distance_norm = min(1.0, distance)
+                direction_x_norm = np.clip((dx / self.vision_radius + 1) / 2, 0, 1)
+                direction_y_norm = np.clip((dy / self.vision_radius + 1) / 2, 0, 1)
+                target_detected = 1 if distance < 0.5 else 0
+            
+            return np.array([energy_norm, thirst_norm, target_distance_norm, 
+                            direction_x_norm, direction_y_norm, target_detected], dtype=np.float32)
         
     def is_alive(self):
         """Agent dies when energy or thirst reaches 0"""
@@ -132,6 +192,7 @@ class Prey(Agent):
     """Prey agent: eats grass only"""
     def __init__(self, agent_id, position):
         super().__init__(agent_id, position, "PREY")
+        self.reproduction_cooldown = 0
     
     def eat(self, environment):
         """Eat from grass tiles within ACTION_RADIUS"""
@@ -148,6 +209,42 @@ class Prey(Agent):
                             # Return energy gained as reward
                             return gain * ENERGY_REWARD_SCALE
         return 0
+    
+    def reproduce(self, environment, new_agent_id):
+        """Prey reproduces if energy is sufficient
+        
+        Returns offspring Prey if reproduction successful, else None
+        """
+        from config.config import REPRODUCTION_ENABLED, PREY_REPRODUCTION_THRESHOLD, PREY_REPRODUCTION_ENERGY_COST, PREY_OFFSPRING_ENERGY
+        
+        if not REPRODUCTION_ENABLED or self.reproduction_cooldown > 0:
+            return None
+        
+        if self.energy >= PREY_REPRODUCTION_THRESHOLD:
+            # Reproduce: lose energy, create offspring
+            self.energy -= PREY_REPRODUCTION_ENERGY_COST
+            self.reproduction_cooldown = 5  # 5-step cooldown before reproducing again
+            
+            # Create offspring nearby
+            for attempt in range(10):  # Try up to 10 times to find nearby empty spot
+                import random
+                dx = random.randint(-2, 2)
+                dy = random.randint(-2, 2)
+                new_x = self.position[0] + dx
+                new_y = self.position[1] + dy
+                
+                if 0 <= new_x < environment.width and 0 <= new_y < environment.height:
+                    offspring = Prey(new_agent_id, (new_x, new_y))
+                    offspring.energy = PREY_OFFSPRING_ENERGY
+                    return offspring
+            
+        return None
+    
+    def decay_resources(self):
+        """Decay energy and thirst, and cooldown"""
+        super().decay_resources()
+        if self.reproduction_cooldown > 0:
+            self.reproduction_cooldown -= 1
 
 
 class Predator(Agent):
@@ -198,5 +295,5 @@ class Predator(Agent):
         # Predator gains energy
         self.energy = min(MAX_AGENT_ENERGY, self.energy + energy_gained)
         
-        # Return energy gained as reward
-        return energy_gained * ENERGY_REWARD_SCALE
+        # Return energy gained as reward + hunting bonus
+        return energy_gained * ENERGY_REWARD_SCALE + 20
