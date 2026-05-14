@@ -8,11 +8,13 @@ from config.config import *
 class QLearningAgent:
     """Tabular Q-Learning agent with discretized state space
     
-    Both PREY and PREDATOR agents use identical 6-dimensional observations:
-    [energy, thirst, target_distance, target_dir_x, target_dir_y, target_detected]
+    Both PREY and PREDATOR agents use identical 8-dimensional observations:
+    [energy, thirst, target_distance, target_dir_x, target_dir_y, target_detected, can_reproduce, water_nearby]
     
     PREY: target = nearest predator (focus on survival)
     PREDATOR: target = nearest prey (focus on hunting)
+    can_reproduce: binary flag indicating if reproduction is currently possible
+    water_nearby: binary flag indicating if water is accessible within ACTION_RADIUS
     
     Discretization:
     - energy: 5 levels [0, 0.2, 0.4, 0.6, 0.8, 1.0]
@@ -21,12 +23,14 @@ class QLearningAgent:
     - target_dir_x: 3 levels [left, center, right]
     - target_dir_y: 3 levels [up, center, down]
     - target_detected: 2 levels [not detected, detected]
+    - can_reproduce: 2 levels [no, yes]
+    - water_nearby: 2 levels [no, yes]
     
-    Total state space: 5 × 5 × 3 × 3 × 3 × 2 = 1,350 states
+    Total state space: 5 × 5 × 3 × 3 × 3 × 2 × 2 × 2 = 5,400 states
     Action space: 11 actions (8 moves + eat + drink + idle)
     """
     
-    def __init__(self, agent_id=0, num_actions=11, num_states=1350):
+    def __init__(self, agent_id=0, num_actions=11, num_states=5400):
         self.agent_id = agent_id
         self.num_actions = num_actions
         self.num_states = num_states
@@ -46,10 +50,10 @@ class QLearningAgent:
     def discretize_state(self, obs):
         """Convert continuous observation to discrete state
         
-        obs: numpy array [energy, thirst, target_distance, target_dir_x, target_dir_y, target_detected]
+        obs: numpy array [energy, thirst, target_distance, target_dir_x, target_dir_y, target_detected, can_reproduce, water_nearby]
         returns: state tuple for Q-table indexing
         
-        State space: 5 × 5 × 3 × 3 × 3 × 2 = 1,350 states
+        State space: 5 × 5 × 3 × 3 × 3 × 2 × 2 × 2 = 5,400 states
         """
         # Ensure obs is normalized [0, 1]
         energy = int(np.clip(obs[0] * 5, 0, 4))
@@ -58,8 +62,10 @@ class QLearningAgent:
         direction_x = int(np.clip(obs[3] * 3, 0, 2))
         direction_y = int(np.clip(obs[4] * 3, 0, 2))
         target_detected = int(np.clip(obs[5], 0, 1))
+        can_reproduce = int(np.clip(obs[6], 0, 1))
+        water_nearby = int(np.clip(obs[7], 0, 1))
         
-        return (energy, thirst, target_distance, direction_x, direction_y, target_detected)
+        return (energy, thirst, target_distance, direction_x, direction_y, target_detected, can_reproduce, water_nearby)
     
     def select_action(self, state, training=True):
         """Epsilon-greedy action selection
@@ -92,15 +98,38 @@ class QLearningAgent:
         # Update Q-value
         self.q_table[state][action] = current_q + self.learning_rate * (target - current_q)
     
+    def apply_death_penalty(self, state, penalty_reward):
+        """Apply death penalty to all Q-values for a given state
+        
+        When an agent dies, penalize the state it was in so the agent learns to avoid
+        similar situations in future episodes.
+        
+        Args:
+            state: The state tuple where death occurred
+            penalty_reward: Negative reward to apply (typically DEATH_PENALTY)
+        """
+        # Apply penalty to all actions in this state
+        # This discourages the agent from taking actions that lead to death
+        for action in range(self.num_actions):
+            current_q = self.q_table[state][action]
+            # Update toward the penalty with full learning rate for stronger effect
+            self.q_table[state][action] = current_q + self.learning_rate * (penalty_reward - current_q)
+    
     def decay_epsilon(self):
         """Decay exploration rate"""
         self.epsilon = max(EPSILON_MIN, self.epsilon * EPSILON_DECAY)
     
     def save_model(self, filepath):
-        """Save Q-table and metadata to file"""
+        """Save Q-table and metadata to file (convert defaultdict to dict for pickling)"""
         import pickle
+        from pathlib import Path
+        
+        # Create directory if needed
+        filepath = Path(filepath)
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        
         model_data = {
-            'q_table': dict(self.q_table),
+            'q_table': dict(self.q_table),  # Convert defaultdict to regular dict for pickling
             'num_actions': self.num_actions,
             'num_states': self.num_states
         }

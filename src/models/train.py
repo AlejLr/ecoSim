@@ -6,11 +6,13 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
+import random
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config.config import *
+from config.utils import set_global_seed
 from environment.gym_env import EcoSimEnv
 from models.Q_learning import QLearningAgent
 
@@ -70,7 +72,7 @@ def train_agent(num_episodes=100, agent_type="PREY", num_prey=4, num_predators=2
     )
     
     # Create Q-learning agent
-    q_agent = QLearningAgent(agent_id=0, num_actions=11, num_states=1350)
+    q_agent = QLearningAgent(agent_id=0, num_actions=11, num_states=5400)
     
     episode_rewards = []
     episode_steps = []
@@ -277,16 +279,23 @@ def plot_training(episode_rewards, episode_steps, title="Q-Learning Training Pro
 
 def main():
     """Main training script"""
+    # Set global seed for reproducibility
+    set_global_seed()
+    
+    # Ensure results directory exists
+    results_dir = Path(__file__).parent / "results"
+    results_dir.mkdir(exist_ok=True)    
     
     # Train prey agent
     print("\n" + "="*60)
     print("TRAINING PREY AGENT")
     print("="*60)
     
+    agent_type = "PREY"
     prey_agent, prey_rewards, prey_steps = train_agent(
         num_episodes=100,
-        agent_type="PREY",
-        num_prey=3,
+        agent_type=agent_type,
+        num_prey=6,
         num_predators=2
     )
     
@@ -294,16 +303,17 @@ def main():
     prey_eval_rewards, prey_eval_steps = evaluate_agent(
         prey_agent,
         num_episodes=10,
-        agent_type="PREY",
-        num_prey=3,
+        agent_type=agent_type,
+        num_prey=6,
         num_predators=2
     )
     
-    # Save trained agent
-    model_path = Path(__file__).parent / "prey_agent.pkl"
-    with open(model_path, 'wb') as f:
-        pickle.dump(prey_agent, f)
-    print(f"Saved prey agent to: {model_path}")
+    # Save trained agent using save_model method (properly handles pickling)
+    # Save to src/models/ directory with naming that matches gym_env.py expectations
+    model_dir = Path(__file__).parent.parent / "models"  # Go up to src, then into models
+    model_dir.mkdir(exist_ok=True)
+    model_path = model_dir / f"trained_{agent_type.lower()}.pkl"
+    prey_agent.save_model(str(model_path))
     
     # Plot results
     plot_training(prey_rewards, prey_steps, title="Prey Agent Training Progress")

@@ -33,9 +33,9 @@ class EcoSimEnv(gym.Env):
         # Action space: 8 moves + eat + drink + idle
         self.action_space = spaces.Discrete(11)
         
-        # Observation space: [energy, thirst, target_distance, target_dir_x, target_dir_y, target_detected]
-        # Same for both prey and predator (6 dims)
-        self.observation_space = spaces.Box(low=0, high=1, shape=(6,), dtype=np.float32)
+        # Observation space: [energy, thirst, target_distance, target_dir_x, target_dir_y, target_detected, can_reproduce, water_nearby]
+        # Same for both prey and predator (8 dims)
+        self.observation_space = spaces.Box(low=0, high=1, shape=(8,), dtype=np.float32)
         
         # Initialize environment
         self.env = None
@@ -54,6 +54,8 @@ class EcoSimEnv(gym.Env):
         """Load pre-trained models for opponent agents (not for learning agent)"""
         print("Loading opponent models...")
         try:
+            # gym_env.py is at src/environment/gym_env.py
+            # We want src/models/ so: parent.parent = src, then / "models"
             models_dir = Path(__file__).resolve().parent.parent / "models"
             
             # Only load the OPPOSITE agent type to avoid self-reference
@@ -107,8 +109,22 @@ class EcoSimEnv(gym.Env):
             # Fallback to random action
             return random.randint(0, 10)
         
-    def reset(self):
-        """Reset environment and return initial observation"""
+    def reset(self, seed=None):
+        """Reset environment and return initial observation
+        
+        Args:
+            seed: Optional seed for reproducibility (from gymnasium API)
+        """
+        from config.config import SEED
+        
+        if seed is None:
+            seed = SEED
+        
+        # Seed the action space if seed is provided
+        if seed is not None:
+            self.action_space.seed(seed)
+            import random as python_random
+            python_random.seed(seed)
         # Create environment
         self.env = grid_env(GRID_SUBENV[0], GRID_SUBENV[1])
         
@@ -184,23 +200,48 @@ class EcoSimEnv(gym.Env):
         # Advance ecological resources after all agents act
         self.env.update_resources()
         
+        # Check if main agent died
+        done = not self.agent.is_alive()
+        if done:
+            reward += DEATH_PENALTY
+        
+        # Clean up dead agents BEFORE reproduction (prevent dead from reproducing)
+        dead_agents = [a for a in self.env.agents if not a.is_alive()]
+        for dead_agent in dead_agents:
+            dead_agent.die(self.env)
+        
         # Handle reproduction for all other agents that support it
         offspring_list = []
         current_prey_count = len([a for a in self.other_agents if a.is_alive() and a.agent_type == "PREY"])
+        current_predator_count = len([a for a in self.other_agents if a.is_alive() and a.agent_type == "PREDATOR"])
+        
         for agent in self.other_agents:
             if agent.is_alive() and hasattr(agent, 'reproduce'):
-                offspring = agent.reproduce(
-                    self.env,
-                    self.next_agent_id,
-                    current_prey_count=current_prey_count,
-                    carrying_capacity=PREY_CARRYING_CAPACITY,
-                                    all_agents=self.other_agents + [self.agent],
-                )
+                if agent.agent_type == "PREY":
+                    offspring = agent.reproduce(
+                        self.env,
+                        self.next_agent_id,
+                        current_prey_count=current_prey_count,
+                        carrying_capacity=PREY_CARRYING_CAPACITY,
+                        all_agents=self.other_agents + [self.agent],
+                    )
+                else:  # PREDATOR
+                    from config.config import PREDATOR_PREY_RATIO_FOR_REPRODUCTION
+                    offspring = agent.reproduce(
+                        self.env,
+                        self.next_agent_id,
+                        current_prey_count=current_prey_count,
+                        current_predator_count=current_predator_count,
+                        all_agents=self.other_agents + [self.agent],
+                    )
+                
                 if offspring is not None:
                     offspring_list.append(offspring)
                     self.next_agent_id += 1
                     if offspring.agent_type == "PREY":
                         current_prey_count += 1
+                    else:
+                        current_predator_count += 1
         
         # Add offspring to environment
         for offspring in offspring_list:
@@ -210,20 +251,39 @@ class EcoSimEnv(gym.Env):
             self.env.agent_grid[x, y] += 1
             self.env.agents_by_position[(x, y)].append(offspring)
         
-        # Check if agent died
-        done = not self.agent.is_alive()
-        if done:
-            reward += DEATH_PENALTY
+        # Handle main agent reproduction
+        if self.agent.is_alive() and hasattr(self.agent, 'reproduce'):
+            if self.agent.agent_type == "PREY":
+                offspring = self.agent.reproduce(
+                    self.env,
+                    self.next_agent_id,
+                    current_prey_count=current_prey_count,
+                    carrying_capacity=PREY_CARRYING_CAPACITY,
+                    all_agents=self.other_agents + [self.agent],
+                )
+            else:  # PREDATOR
+                offspring = self.agent.reproduce(
+                    self.env,
+                    self.next_agent_id,
+                    current_prey_count=current_prey_count,
+                    current_predator_count=current_predator_count,
+                    all_agents=self.other_agents + [self.agent],
+                )
+            
+            if offspring is not None:
+                from config.config import REPRODUCTION_REWARD
+                self.agent.episode_reward += REPRODUCTION_REWARD
+                
+                self.other_agents.append(offspring)
+                self.env.agents.append(offspring)
+                x, y = offspring.position
+                self.env.agent_grid[x, y] += 1
+                self.env.agents_by_position[(x, y)].append(offspring)
         
         # Check step limit
         self.steps += 1
         if self.steps >= STEPS_PER_EPISODE:
             done = True
-        
-        # Clean up dead agents
-        dead_agents = [a for a in self.env.agents if not a.is_alive()]
-        for dead_agent in dead_agents:
-            dead_agent.die(self.env)
         
         obs = self._get_obs()
         info = {"episode_reward": self.agent.episode_reward, "steps": self.steps}

@@ -10,6 +10,9 @@ RENDER = True
 VERBOSE = False
 SAVE_STATS = True
 
+# RANDOM SEED FOR REPRODUCIBILITY
+SEED = 42  # Global seed for numpy, random, gym - set to None for non-deterministic runs
+
 # ENVIRONMENT
 GRASS_ENERGY = 40
 WATER_HYDRATION = 20
@@ -24,12 +27,16 @@ TILE_DISTRIBUTION = {
 # AGENTS
 NUM_AGENTS = 10                 # Total agents in environment
 MAX_AGENT_ENERGY = 100          # All agents have same max energy
-ENERGY_DECAY_PER_STEP = 0.5     # Agents lose 0.5 energy per step (reduced for sustainability)
+ENERGY_DECAY_PER_STEP = 0.3     # Agents lose 0.3 energy per step (rebalanced for sustainability)
 MOVEMENT_ENERGY_COST = 0.15     # Extra energy cost when a move action is taken
 MAX_THIRST = 100
 THIRST_DECAY_PER_STEP = 0.5     # Agents lose 0.5 thirst per step (reduced for sustainability)
 VISION_RADIUS = 4               # All agents can see 4 tiles away
 ACTION_RADIUS = 3               # All agents can act within 3 tiles (increased for predator hunting)
+
+# AGENT STARTING ENERGY (below max to require learning)
+START_ENERGY_PREY = 70          # Prey start below max (prevents trivial early reproduction)
+START_ENERGY_PREDATOR = 85      # Predators start with slight margin
 
 # REINFORCEMENT LEARNING
 LEARNING_RATE = 0.1             # Q-learning alpha
@@ -43,6 +50,10 @@ STEPS_PER_EPISODE = 250         # Max steps per episode
 
 # REWARDS
 ENERGY_REWARD_SCALE = 1.0       # Reward = energy_gained * scale
+DRINKING_REWARD = 0.5           # Reward for successfully drinking
+REPRODUCTION_REWARD = 0.5        # Reward for successful reproduction
+THIRST_PENALTY_THRESHOLD = 20   # If thirst drops below this, additional penalty
+THIRST_CRITICAL_PENALTY = -2.0  # Penalty when thirst is critically low
 DEATH_PENALTY = -10             # Penalty for dying
 STEP_PENALTY = -0.01            # Small penalty per step
 SURVIVE_BONUS = 0.1             # Small bonus for staying alive
@@ -55,19 +66,22 @@ PREY_PREDATION_SUSTAINABILITY_THRESHOLD = 75  # Below this prey count, hunting r
 
 # REPRODUCTION
 REPRODUCTION_ENABLED = True     # Enable prey reproduction
-PREY_REPRODUCTION_THRESHOLD = 70    # Min energy needed to reproduce
+PREY_REPRODUCTION_THRESHOLD = 60    # Min energy needed to reproduce (was 70, now delayed)
 PREY_REPRODUCTION_ENERGY_COST = 30  # Energy cost for prey to reproduce
 PREY_OFFSPRING_ENERGY = 40      # Offspring start with this energy
 PREY_REPRODUCTION_SEARCH_RADIUS = 2  # Nearby tiles to search for a free birth location
 PREY_CARRYING_CAPACITY_RATIO = 0.01  # Fraction of grid cells that can be occupied by prey
 PREY_CARRYING_CAPACITY = int(GRID_SUBENV[0] * GRID_SUBENV[1] * PREY_CARRYING_CAPACITY_RATIO)
 PREY_REPRODUCTION_COOLDOWN = 5
+PREY_REPRODUCTION_PROB_SCALE = 0.8  # Reproduction probability = (energy_surplus / max_surplus) * scale
 PREDATOR_REPRODUCTION_ENABLED = True
-PREDATOR_REPRODUCTION_THRESHOLD = 85
+PREDATOR_REPRODUCTION_THRESHOLD = 80  # Min energy (was 85, now more achievable)
 PREDATOR_REPRODUCTION_ENERGY_COST = 35
 PREDATOR_OFFSPRING_ENERGY = 45
 PREDATOR_REPRODUCTION_SEARCH_RADIUS = 2
 PREDATOR_REPRODUCTION_COOLDOWN = 8
+PREDATOR_REPRODUCTION_PROB_SCALE = 0.7  # Higher chance than prey (encourage pack formation)
+PREDATOR_PREY_RATIO_FOR_REPRODUCTION = 0.1  # Max predators = prey_count * this ratio
 
 # COLORS
 colors = {

@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import numpy as np
 
+from config.utils import set_global_seed
 from environment.multi_agent_gym_env import MultiAgentEcoSimEnv
 
 
@@ -68,6 +69,6 @@ def run_short(episodes=5, max_steps=100, num_prey=4, num_predators=2):
 
 
 if __name__ == '__main__':
-    random.seed(0)
-    np.random.seed(0)
+    # Set global seed for reproducibility
+    set_global_seed()
     run_short(episodes=5, max_steps=100, num_prey=4, num_predators=2)

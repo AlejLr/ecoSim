@@ -78,13 +78,27 @@ class grid_env():
         return closest_tile
     
     def update_agent_position(self, agent, old_pos, new_pos):
-        """Update agent's position in the agent_grid."""
+        """Update agent's position in the agent_grid with defensive checks."""
+        # Bounds check
         if not (0 <= new_pos[0] < self.width and 0 <= new_pos[1] < self.height):
             return False
+        
+        # Consistency checks
+        if agent not in self.agents_by_position[old_pos]:
+            raise ValueError(f"Agent {agent.agent_id} not found at old position {old_pos}")
+        if self.agent_grid[old_pos] <= 0:
+            raise ValueError(f"Agent grid count at {old_pos} is {self.agent_grid[old_pos]}, cannot decrement")
+        
+        # Update grids
         self.agent_grid[old_pos] -= 1
         self.agent_grid[new_pos] += 1
         self.agents_by_position[old_pos].remove(agent)
         self.agents_by_position[new_pos].append(agent)
+        
+        # Post-update assertions
+        assert self.agent_grid[old_pos] >= 0, f"Grid count went negative at {old_pos}"
+        assert agent in self.agents_by_position[new_pos], f"Agent not in new position list"
+        
         return True
     
     def get_agents_at(self, pos):
@@ -98,6 +112,32 @@ class grid_env():
         if 0 <= pos[0] < self.width and 0 <= pos[1] < self.height:
             return self.agent_grid[pos] == 0
         return False
+    
+    def verify_consistency(self):
+        """Verify environment consistency - all data structures match.
+        
+        Raises AssertionError if inconsistencies found.
+        """
+        # Check that all agents in agents list are in agents_by_position
+        for agent in self.agents:
+            pos = agent.position
+            assert pos in self.agents_by_position, \
+                f"Agent {agent.agent_id} at {pos} not in agents_by_position dict"
+            assert agent in self.agents_by_position[pos], \
+                f"Agent {agent.agent_id} at {pos} not in agents_by_position[{pos}]"
+        
+        # Check that agent_grid counts match agents_by_position lists
+        for pos in self.agents_by_position:
+            count = len(self.agents_by_position[pos])
+            grid_count = self.agent_grid[pos[0], pos[1]] if (0 <= pos[0] < self.width and 0 <= pos[1] < self.height) else 0
+            assert count == grid_count, \
+                f"Agent count mismatch at {pos}: agents_by_position has {count}, agent_grid has {grid_count}"
+        
+        # Check that all agents in agents_by_position are in agents list
+        for pos in self.agents_by_position:
+            for agent in self.agents_by_position[pos]:
+                assert agent in self.agents, \
+                    f"Agent {agent.agent_id} in agents_by_position[{pos}] but not in agents list"
 
     def update_resources(self):
         """Advance resource regeneration for all tiles."""
