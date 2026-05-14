@@ -20,7 +20,7 @@ print("="*60 + "\n")
 env = EcoSimEnv(agent_id=0, num_prey=2, num_predators=1, agent_type="PREY")
 
 # Create Q-learning agent
-q_agent = QLearningAgent(agent_id=0, num_actions=11, num_states=675)
+q_agent = QLearningAgent(agent_id=0, num_actions=11, num_states=1350)
 
 # Train for 5 episodes
 for episode in range(5):

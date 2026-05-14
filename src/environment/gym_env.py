@@ -173,19 +173,34 @@ class EcoSimEnv(gym.Env):
                 if self.memory and (self.trained_prey_model or self.trained_predator_model):
                     # Use trained model for action selection
                     action = self._get_other_agent_action(other_agent)
-                    other_agent.action(action, self.env)
+                    other_reward = other_agent.action(action, self.env)
                 else:
                     # Use random movement
                     other_agent.test(self.env)
+                    other_reward = 0
+
+                other_agent.episode_reward += other_reward
+
+        # Advance ecological resources after all agents act
+        self.env.update_resources()
         
-        # Handle reproduction for other prey agents
+        # Handle reproduction for all other agents that support it
         offspring_list = []
+        current_prey_count = len([a for a in self.other_agents if a.is_alive() and a.agent_type == "PREY"])
         for agent in self.other_agents:
-            if agent.is_alive() and hasattr(agent, 'reproduce') and agent.agent_type == "PREY":
-                offspring = agent.reproduce(self.env, self.next_agent_id)
+            if agent.is_alive() and hasattr(agent, 'reproduce'):
+                offspring = agent.reproduce(
+                    self.env,
+                    self.next_agent_id,
+                    current_prey_count=current_prey_count,
+                    carrying_capacity=PREY_CARRYING_CAPACITY,
+                                    all_agents=self.other_agents + [self.agent],
+                )
                 if offspring is not None:
                     offspring_list.append(offspring)
                     self.next_agent_id += 1
+                    if offspring.agent_type == "PREY":
+                        current_prey_count += 1
         
         # Add offspring to environment
         for offspring in offspring_list:

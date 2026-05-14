@@ -48,17 +48,15 @@ class Agent():
         # Add base penalty per step
         immediate_reward += STEP_PENALTY
         
-        # Predator bonus: +1 reward for detecting prey
+        # Small detection bonuses/penalties (configurable)
         if self.agent_type == "PREDATOR":
             obs = self.get_observation(environment)
             if obs[5] > 0:  # prey_detected
-                immediate_reward += 1.0
-        
-        # Prey penalty: -1 reward for detecting predator (encourages avoidance/exploration)
+                immediate_reward += PREDATOR_DETECTION_BONUS
         elif self.agent_type == "PREY":
             obs = self.get_observation(environment)
             if obs[5] > 0:  # pred_detected
-                immediate_reward -= 1.0
+                immediate_reward += PREY_DETECTION_PENALTY
         
         return immediate_reward
 
@@ -75,6 +73,7 @@ class Agent():
         if 0 <= new_x < environment.width and 0 <= new_y < environment.height:
             environment.update_agent_position(self, self.position, (new_x, new_y))
             self.position = (new_x, new_y)
+            self.energy = max(0, self.energy - MOVEMENT_ENERGY_COST)
 
     def eat(self, environment):
         """Eat from tiles/agents within ACTION_RADIUS. Override in subclasses."""
@@ -187,13 +186,29 @@ class Agent():
         
         environment.agent_grid[x, y] = max(0, environment.agent_grid[x, y] - 1)
 
+    def _find_nearby_mate(self, all_agents, search_radius=3):
+        """Find nearby alive mate of same species for sexual reproduction.
+
+        Returns mate agent or None.
+        """
+        for other in all_agents:
+            if (other.is_alive() and
+                other.agent_type == self.agent_type and
+                other.agent_id != self.agent_id and
+                getattr(other, 'reproduction_cooldown', 0) == 0):
+                dx = abs(other.position[0] - self.position[0])
+                dy = abs(other.position[1] - self.position[1])
+                if dx <= search_radius and dy <= search_radius:
+                    return other
+        return None
+
 
 class Prey(Agent):
     """Prey agent: eats grass only"""
     def __init__(self, agent_id, position):
         super().__init__(agent_id, position, "PREY")
         self.reproduction_cooldown = 0
-    
+
     def eat(self, environment):
         """Eat from grass tiles within ACTION_RADIUS"""
         for dx in range(-ACTION_RADIUS, ACTION_RADIUS + 1):
@@ -206,40 +221,63 @@ class Prey(Agent):
                         gain = tile.eat()
                         if gain > 0:
                             self.energy = min(MAX_AGENT_ENERGY, self.energy + gain)
-                            # Return energy gained as reward
                             return gain * ENERGY_REWARD_SCALE
         return 0
-    
-    def reproduce(self, environment, new_agent_id):
-        """Prey reproduces if energy is sufficient
-        
-        Returns offspring Prey if reproduction successful, else None
-        """
-        from config.config import REPRODUCTION_ENABLED, PREY_REPRODUCTION_THRESHOLD, PREY_REPRODUCTION_ENERGY_COST, PREY_OFFSPRING_ENERGY
-        
+
+    def reproduce(self, environment, new_agent_id, current_prey_count=None, carrying_capacity=None, all_agents=None):
+        """Prey reproduces if energy is sufficient and a mate is nearby (SEXUAL)."""
+        from config.config import (
+            REPRODUCTION_ENABLED,
+            PREY_REPRODUCTION_THRESHOLD,
+            PREY_REPRODUCTION_ENERGY_COST,
+            PREY_OFFSPRING_ENERGY,
+            PREY_REPRODUCTION_SEARCH_RADIUS,
+            PREY_REPRODUCTION_COOLDOWN,
+        )
+
         if not REPRODUCTION_ENABLED or self.reproduction_cooldown > 0:
             return None
-        
-        if self.energy >= PREY_REPRODUCTION_THRESHOLD:
-            # Reproduce: lose energy, create offspring
-            self.energy -= PREY_REPRODUCTION_ENERGY_COST
-            self.reproduction_cooldown = 5  # 5-step cooldown before reproducing again
-            
-            # Create offspring nearby
-            for attempt in range(10):  # Try up to 10 times to find nearby empty spot
-                import random
-                dx = random.randint(-2, 2)
-                dy = random.randint(-2, 2)
+
+        if carrying_capacity is not None and current_prey_count is not None:
+            if current_prey_count >= carrying_capacity:
+                return None
+
+        if all_agents is None:
+            all_agents = []
+
+        mate = self._find_nearby_mate(all_agents, search_radius=PREY_REPRODUCTION_SEARCH_RADIUS)
+        if mate is None:
+            return None
+
+        if self.energy < PREY_REPRODUCTION_THRESHOLD or mate.energy < PREY_REPRODUCTION_THRESHOLD:
+            return None
+
+        free_positions = []
+        for dx in range(-PREY_REPRODUCTION_SEARCH_RADIUS, PREY_REPRODUCTION_SEARCH_RADIUS + 1):
+            for dy in range(-PREY_REPRODUCTION_SEARCH_RADIUS, PREY_REPRODUCTION_SEARCH_RADIUS + 1):
                 new_x = self.position[0] + dx
                 new_y = self.position[1] + dy
-                
-                if 0 <= new_x < environment.width and 0 <= new_y < environment.height:
-                    offspring = Prey(new_agent_id, (new_x, new_y))
-                    offspring.energy = PREY_OFFSPRING_ENERGY
-                    return offspring
-            
-        return None
-    
+                if not (0 <= new_x < environment.width and 0 <= new_y < environment.height):
+                    continue
+                if environment.is_position_free((new_x, new_y)):
+                    free_positions.append((new_x, new_y))
+
+        if not free_positions:
+            return None
+
+        import random
+        new_pos = random.choice(free_positions)
+
+        # Both parents pay cost and enter cooldown
+        self.energy -= PREY_REPRODUCTION_ENERGY_COST
+        mate.energy -= PREY_REPRODUCTION_ENERGY_COST
+        self.reproduction_cooldown = PREY_REPRODUCTION_COOLDOWN
+        mate.reproduction_cooldown = PREY_REPRODUCTION_COOLDOWN
+
+        offspring = Prey(new_agent_id, new_pos)
+        offspring.energy = PREY_OFFSPRING_ENERGY
+        return offspring
+
     def decay_resources(self):
         """Decay energy and thirst, and cooldown"""
         super().decay_resources()
@@ -251,6 +289,7 @@ class Predator(Agent):
     """Predator agent: hunts and eats prey"""
     def __init__(self, agent_id, position):
         super().__init__(agent_id, position, "PREDATOR")
+        self.reproduction_cooldown = 0
     
     def eat(self, environment, target_position=None):
         """Hunt and eat prey within ACTION_RADIUS
@@ -293,7 +332,76 @@ class Predator(Agent):
         prey.energy = 0  # Kill the prey (will be cleaned up later)
         
         # Predator gains energy
-        self.energy = min(MAX_AGENT_ENERGY, self.energy + energy_gained)
+        predation_energy_transfer = energy_gained * 0.85
+        self.energy = min(MAX_AGENT_ENERGY, self.energy + predation_energy_transfer)
+
+        current_prey_count = len([
+            agent for agent in environment.agents
+            if agent.is_alive() and agent.agent_type == "PREY"
+        ])
+        reward_scale = 1.0
+        if PREY_PREDATION_SUSTAINABILITY_THRESHOLD > 0:
+            reward_scale = min(1.0, current_prey_count / PREY_PREDATION_SUSTAINABILITY_THRESHOLD)
         
-        # Return energy gained as reward + hunting bonus
-        return energy_gained * ENERGY_REWARD_SCALE + 20
+        # Return energy gained as reward + small configurable hunting bonus
+        bonus = (HUNTING_SUCCESS_BONUS if energy_gained > 0 else 0) * reward_scale
+        return energy_gained * ENERGY_REWARD_SCALE + bonus
+
+    def reproduce(self, environment, new_agent_id, current_prey_count=None, carrying_capacity=None, all_agents=None):
+        """Predator reproduces when energy is sufficient, a mate is nearby, and free nearby space (SEXUAL reproduction)."""
+        from config.config import (
+            PREDATOR_REPRODUCTION_ENABLED,
+            PREDATOR_REPRODUCTION_THRESHOLD,
+            PREDATOR_REPRODUCTION_ENERGY_COST,
+            PREDATOR_OFFSPRING_ENERGY,
+            PREDATOR_REPRODUCTION_SEARCH_RADIUS,
+            PREDATOR_REPRODUCTION_COOLDOWN,
+        )
+
+        if not PREDATOR_REPRODUCTION_ENABLED or self.reproduction_cooldown > 0:
+            return None
+
+        if current_prey_count is not None and current_prey_count <= 0:
+            return None
+
+        # SEXUAL REPRODUCTION: Require a nearby mate
+        if all_agents is None:
+            all_agents = []
+        mate = self._find_nearby_mate(all_agents, search_radius=PREDATOR_REPRODUCTION_SEARCH_RADIUS)
+        if mate is None:
+            return None
+
+        if self.energy < PREDATOR_REPRODUCTION_THRESHOLD or mate.energy < PREDATOR_REPRODUCTION_THRESHOLD:
+            return None
+
+        free_positions = []
+        for dx in range(-PREDATOR_REPRODUCTION_SEARCH_RADIUS, PREDATOR_REPRODUCTION_SEARCH_RADIUS + 1):
+            for dy in range(-PREDATOR_REPRODUCTION_SEARCH_RADIUS, PREDATOR_REPRODUCTION_SEARCH_RADIUS + 1):
+                new_x = self.position[0] + dx
+                new_y = self.position[1] + dy
+                if not (0 <= new_x < environment.width and 0 <= new_y < environment.height):
+                    continue
+                if environment.is_position_free((new_x, new_y)):
+                    free_positions.append((new_x, new_y))
+
+        if not free_positions:
+            return None
+
+        import random
+        new_pos = random.choice(free_positions)
+
+        # Both parents pay energy cost
+        self.energy -= PREDATOR_REPRODUCTION_ENERGY_COST
+        mate.energy -= PREDATOR_REPRODUCTION_ENERGY_COST
+        self.reproduction_cooldown = PREDATOR_REPRODUCTION_COOLDOWN
+        mate.reproduction_cooldown = PREDATOR_REPRODUCTION_COOLDOWN
+
+        offspring = Predator(new_agent_id, new_pos)
+        offspring.energy = PREDATOR_OFFSPRING_ENERGY
+        return offspring
+
+    def decay_resources(self):
+        """Decay energy/thirst and reproduction cooldown."""
+        super().decay_resources()
+        if self.reproduction_cooldown > 0:
+            self.reproduction_cooldown -= 1

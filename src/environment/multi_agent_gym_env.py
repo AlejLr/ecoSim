@@ -41,6 +41,7 @@ class MultiAgentEcoSimEnv(gym.Env):
         self.all_agents = []  # All agents that learn
         self.steps = 0
         self.next_agent_id = 1000  # Start offspring IDs high to avoid conflicts
+        self.prey_carrying_capacity = PREY_CARRYING_CAPACITY
         
         # Track metrics per species
         self.prey_rewards = defaultdict(float)  # agent_id -> total reward
@@ -65,7 +66,7 @@ class MultiAgentEcoSimEnv(gym.Env):
             x = random.randint(0, self.env.width - 1)
             y = random.randint(0, self.env.height - 1)
             prey = Prey(agent_counter, (x, y))
-            prey.q_learning = QLearningAgent(agent_id=agent_counter, num_actions=11, num_states=675)
+            prey.q_learning = QLearningAgent(agent_id=agent_counter, num_actions=11, num_states=1350)
             self.all_agents.append(prey)
             self.env.agents.append(prey)
             self.env.agent_grid[x, y] += 1
@@ -77,7 +78,7 @@ class MultiAgentEcoSimEnv(gym.Env):
             x = random.randint(0, self.env.width - 1)
             y = random.randint(0, self.env.height - 1)
             pred = Predator(agent_counter, (x, y))
-            pred.q_learning = QLearningAgent(agent_id=agent_counter, num_actions=11, num_states=675)
+            pred.q_learning = QLearningAgent(agent_id=agent_counter, num_actions=11, num_states=1350)
             self.all_agents.append(pred)
             self.env.agents.append(pred)
             self.env.agent_grid[x, y] += 1
@@ -87,11 +88,12 @@ class MultiAgentEcoSimEnv(gym.Env):
         self.steps = 0
         self.prey_rewards.clear()
         self.predator_rewards.clear()
+        self.prey_carrying_capacity = PREY_CARRYING_CAPACITY
         
         # Return observation of all agents (for compatibility, return first agent's obs)
         if self.all_agents:
             return self.all_agents[0].get_observation(self.env)
-        return np.zeros(5, dtype=np.float32)
+        return np.zeros(6, dtype=np.float32)
     
     def step(self, actions=None):
         """Execute one step with ALL agents taking Q-learning actions
@@ -107,15 +109,21 @@ class MultiAgentEcoSimEnv(gym.Env):
             actions = {}
         
         alive_agents = [a for a in self.all_agents if a.is_alive()]
-        
+
         if not alive_agents:
-            return np.zeros(5, dtype=np.float32), 0, True, {}
-        
+            return np.zeros(6, dtype=np.float32), 0, True, {}
+
+        # Randomize action order to avoid sequencing bias
+        random.shuffle(alive_agents)
+
         # All agents take actions and learn immediately
         for agent in alive_agents:
             if agent.is_alive():
                 # Get current state and observation
                 obs = agent.get_observation(self.env)
+                # Defensive check: observations must be 6-dim
+                if not hasattr(obs, '__len__') or len(obs) != 6:
+                    raise ValueError(f"Invalid observation shape for agent {agent.agent_id}: {obs}")
                 state = agent.q_learning.discretize_state(obs)
                 
                 # Select action via epsilon-greedy
@@ -140,6 +148,9 @@ class MultiAgentEcoSimEnv(gym.Env):
                     self.prey_rewards[agent.agent_id] += reward
                 else:
                     self.predator_rewards[agent.agent_id] += reward
+
+        # Advance resource regeneration after all actions are resolved
+        self.env.update_resources()
         
         # Decay epsilon for all agents
         for agent in alive_agents:
@@ -153,18 +164,27 @@ class MultiAgentEcoSimEnv(gym.Env):
         for dead_agent in dead_agents:
             dead_agent.die(self.env)
         
-        # Handle reproduction for all prey agents
+        # Handle reproduction for all agents that support it
         offspring_list = []
+        current_prey_count = len([a for a in self.all_agents if a.is_alive() and a.agent_type == "PREY"])
         for agent in self.all_agents:
-            if agent.is_alive() and hasattr(agent, 'reproduce') and agent.agent_type == "PREY":
-                offspring = agent.reproduce(self.env, self.next_agent_id)
+            if agent.is_alive() and hasattr(agent, 'reproduce'):
+                offspring = agent.reproduce(
+                    self.env,
+                    self.next_agent_id,
+                    current_prey_count=current_prey_count,
+                    carrying_capacity=self.prey_carrying_capacity,
+                                    all_agents=self.all_agents,
+                )
                 if offspring is not None:
                     offspring_list.append(offspring)
                     self.next_agent_id += 1
+                    if offspring.agent_type == "PREY":
+                        current_prey_count += 1
         
         # Add offspring to environment and all_agents list
         for offspring in offspring_list:
-            offspring.q_learning = QLearningAgent(agent_id=offspring.agent_id, num_actions=11, num_states=675)
+            offspring.q_learning = QLearningAgent(agent_id=offspring.agent_id, num_actions=11, num_states=1350)
             self.all_agents.append(offspring)
             self.env.agents.append(offspring)
             x, y = offspring.position
@@ -186,7 +206,7 @@ class MultiAgentEcoSimEnv(gym.Env):
                 "predator_rewards": dict(self.predator_rewards),
             }
         
-        return np.zeros(5, dtype=np.float32), 0, done, {}
+        return np.zeros(6, dtype=np.float32), 0, done, {}
     
     def render(self, mode='human'):
         """Render the environment (optional)"""

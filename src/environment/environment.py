@@ -92,6 +92,20 @@ class grid_env():
         if 0 <= pos[0] < self.width and 0 <= pos[1] < self.height:
             return self.agent_grid[pos]
         return 0
+
+    def is_position_free(self, pos):
+        """Return True if no agents occupy the position."""
+        if 0 <= pos[0] < self.width and 0 <= pos[1] < self.height:
+            return self.agent_grid[pos] == 0
+        return False
+
+    def update_resources(self):
+        """Advance resource regeneration for all tiles."""
+        for x in range(self.width):
+            for y in range(self.height):
+                tile = self.tiles[x][y]
+                if hasattr(tile, "update"):
+                    tile.update()
     
     def get_agents_nearby(self, pos, radius):
         """Get all agents within a certain radius of a position."""

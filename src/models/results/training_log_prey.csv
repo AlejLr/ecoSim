@@ -1,0 +1,2 @@
+episode,mean_prey_reward,mean_predator_reward,prey_population_end,predator_population_end,average_prey_energy,average_predator_energy,epsilon,episode_reward,episode_steps
+1,151.50000000000028,0.0,1,0,98.69999999999999,0.0,0.995,757.5000000000014,250

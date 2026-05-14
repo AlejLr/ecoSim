@@ -11,8 +11,9 @@ VERBOSE = False
 SAVE_STATS = True
 
 # ENVIRONMENT
-GRASS_ENERGY = 50
+GRASS_ENERGY = 40
 WATER_HYDRATION = 20
+GRASS_REGROWTH_STEPS = 8      # Steps before a depleted grass tile becomes available again
 
 TILE_DISTRIBUTION = {
     "grass": 0.7,
@@ -24,6 +25,7 @@ TILE_DISTRIBUTION = {
 NUM_AGENTS = 10                 # Total agents in environment
 MAX_AGENT_ENERGY = 100          # All agents have same max energy
 ENERGY_DECAY_PER_STEP = 0.5     # Agents lose 0.5 energy per step (reduced for sustainability)
+MOVEMENT_ENERGY_COST = 0.15     # Extra energy cost when a move action is taken
 MAX_THIRST = 100
 THIRST_DECAY_PER_STEP = 0.5     # Agents lose 0.5 thirst per step (reduced for sustainability)
 VISION_RADIUS = 4               # All agents can see 4 tiles away
@@ -42,14 +44,30 @@ STEPS_PER_EPISODE = 250         # Max steps per episode
 # REWARDS
 ENERGY_REWARD_SCALE = 1.0       # Reward = energy_gained * scale
 DEATH_PENALTY = -10             # Penalty for dying
-STEP_PENALTY = -0.005           # Small penalty per step (reduced to match shorter episodes)
+STEP_PENALTY = -0.01            # Small penalty per step
 SURVIVE_BONUS = 0.1             # Small bonus for staying alive
+
+# Hunting and detection reward tuning
+HUNTING_SUCCESS_BONUS = 0.25    # Small bonus for successful hunt (added to energy-based reward)
+PREDATOR_DETECTION_BONUS = 0.0  # Small bonus when predator detects prey (kept 0 to avoid bias)
+PREY_DETECTION_PENALTY = 0.0    # Small penalty when prey detects predator (avoid large penalties)
+PREY_PREDATION_SUSTAINABILITY_THRESHOLD = 75  # Below this prey count, hunting reward is reduced
 
 # REPRODUCTION
 REPRODUCTION_ENABLED = True     # Enable prey reproduction
 PREY_REPRODUCTION_THRESHOLD = 70    # Min energy needed to reproduce
 PREY_REPRODUCTION_ENERGY_COST = 30  # Energy cost for prey to reproduce
 PREY_OFFSPRING_ENERGY = 40      # Offspring start with this energy
+PREY_REPRODUCTION_SEARCH_RADIUS = 2  # Nearby tiles to search for a free birth location
+PREY_CARRYING_CAPACITY_RATIO = 0.01  # Fraction of grid cells that can be occupied by prey
+PREY_CARRYING_CAPACITY = int(GRID_SUBENV[0] * GRID_SUBENV[1] * PREY_CARRYING_CAPACITY_RATIO)
+PREY_REPRODUCTION_COOLDOWN = 5
+PREDATOR_REPRODUCTION_ENABLED = True
+PREDATOR_REPRODUCTION_THRESHOLD = 85
+PREDATOR_REPRODUCTION_ENERGY_COST = 35
+PREDATOR_OFFSPRING_ENERGY = 45
+PREDATOR_REPRODUCTION_SEARCH_RADIUS = 2
+PREDATOR_REPRODUCTION_COOLDOWN = 8
 
 # COLORS
 colors = {

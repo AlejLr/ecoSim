@@ -22,11 +22,11 @@ class QLearningAgent:
     - target_dir_y: 3 levels [up, center, down]
     - target_detected: 2 levels [not detected, detected]
     
-    Total state space: 5 × 5 × 3 × 3 × 3 × 2 = 2,250 states
+    Total state space: 5 × 5 × 3 × 3 × 3 × 2 = 1,350 states
     Action space: 11 actions (8 moves + eat + drink + idle)
     """
     
-    def __init__(self, agent_id=0, num_actions=11, num_states=675):
+    def __init__(self, agent_id=0, num_actions=11, num_states=1350):
         self.agent_id = agent_id
         self.num_actions = num_actions
         self.num_states = num_states
@@ -49,7 +49,7 @@ class QLearningAgent:
         obs: numpy array [energy, thirst, target_distance, target_dir_x, target_dir_y, target_detected]
         returns: state tuple for Q-table indexing
         
-        State space: 5 × 5 × 3 × 3 × 3 × 2 = 2,250 states
+        State space: 5 × 5 × 3 × 3 × 3 × 2 = 1,350 states
         """
         # Ensure obs is normalized [0, 1]
         energy = int(np.clip(obs[0] * 5, 0, 4))

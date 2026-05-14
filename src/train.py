@@ -47,7 +47,7 @@ def main():
     env = EcoSimEnv(agent_id=0, num_prey=8, num_predators=2, map_path=None, agent_type=agent_type, memory=memory)
     
     print("Initializing Q-Learning agent...")
-    agent = QLearningAgent(agent_id=0, num_actions=11, num_states=2250)
+    agent = QLearningAgent(agent_id=0, num_actions=11, num_states=1350)
     
     # Train agent
     print("\n" + "="*60)
