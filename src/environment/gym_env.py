@@ -5,6 +5,7 @@ import random
 from pathlib import Path
 
 from config.config import *
+from config.utils import get_latest_model_path
 from environment.environment import grid_env
 from agents.agent import Prey, Predator
 from models.Q_learning import QLearningAgent
@@ -20,7 +21,7 @@ class EcoSimEnv(gym.Env):
     Reward: energy_gained - step_penalty, or death_penalty on death
     """
     
-    def __init__(self, agent_id=0, num_prey=4, num_predators=2, agent_type="PREDATOR", map_path=None, memory=False):
+    def __init__(self, agent_id=0, num_prey=4, num_predators=2, agent_type="PREDATOR", map_path=None, memory=False, opponent_agent=None, opponent_type=None, same_species_agent=None, same_species_type=None, frozen_policy_epsilon=0.01):
         super(EcoSimEnv, self).__init__()
         
         self.agent_id = agent_id
@@ -29,6 +30,11 @@ class EcoSimEnv(gym.Env):
         self.agent_type = agent_type.upper()
         self.map_path = map_path
         self.memory = memory  # Use pre-trained models for other agents
+        self.opponent_agent = opponent_agent  # Direct agent for alternating training
+        self.opponent_type = opponent_type.upper() if opponent_type else None
+        self.same_species_agent = same_species_agent  # Frozen policy for learner species background agents
+        self.same_species_type = same_species_type.upper() if same_species_type else None
+        self.frozen_policy_epsilon = float(frozen_policy_epsilon)
         
         # Action space: 8 moves + eat + drink + idle
         self.action_space = spaces.Discrete(11)
@@ -47,25 +53,28 @@ class EcoSimEnv(gym.Env):
         # Load pre-trained models if memory is enabled
         self.trained_prey_model = None
         self.trained_predator_model = None
-        if self.memory:
+        
+        if self.opponent_agent is not None:
+            opponent_label = self.opponent_type or "unknown"
+            print(f"✓ Using custom opponent agent for {opponent_label}")
+        if self.same_species_agent is not None:
+            same_species_label = self.same_species_type or "unknown"
+            print(f"✓ Using frozen same-species policy for {same_species_label} (eps={self.frozen_policy_epsilon:.3f})")
+        elif self.memory:
             self._load_trained_models()
     
     def _load_trained_models(self):
         """Load pre-trained models for opponent agents (not for learning agent)"""
-        print("Loading opponent models...")
+        print("Loading opponent models (latest version)...")
         try:
-            # gym_env.py is at src/environment/gym_env.py
-            # We want src/models/ so: parent.parent = src, then / "models"
-            models_dir = Path(__file__).resolve().parent.parent / "models"
-            
             # Only load the OPPOSITE agent type to avoid self-reference
-            # If we're training PREY, load PREDATOR model for predator agents
-            # If we're training PREDATOR, load PREY model for prey agents
+            # If we're training PREY, load PREDATOR model for other predators
+            # If we're training PREDATOR, load PREY model for other prey agents
             
             if self.agent_type == "PREY":
-                # Training prey - load predator model for other predators
-                pred_path = models_dir / "trained_predator.pkl"
-                if pred_path.exists():
+                # Training prey - load latest predator model for other predators
+                pred_path = get_latest_model_path("PREDATOR")
+                if pred_path and pred_path.exists():
                     try:
                         print(f"  Loading PREDATOR opponent from {pred_path}...")
                         self.trained_predator_model = QLearningAgent.load_model_from_file(str(pred_path))
@@ -74,12 +83,12 @@ class EcoSimEnv(gym.Env):
                         print(f"⚠ Error loading PREDATOR model: {e}")
                         self.trained_predator_model = None
                 else:
-                    print(f"⚠ Predator model not found at {pred_path}")
+                    print(f"⚠ Predator model not found (will use random actions)")
                     
             else:  # Training predator
-                # Training predator - load prey model for other prey
-                prey_path = models_dir / "trained_prey.pkl"
-                if prey_path.exists():
+                # Training predator - load latest prey model for other prey
+                prey_path = get_latest_model_path("PREY")
+                if prey_path and prey_path.exists():
                     try:
                         print(f"  Loading PREY opponent from {prey_path}...")
                         self.trained_prey_model = QLearningAgent.load_model_from_file(str(prey_path))
@@ -88,13 +97,39 @@ class EcoSimEnv(gym.Env):
                         print(f"⚠ Error loading PREY model: {e}")
                         self.trained_prey_model = None
                 else:
-                    print(f"⚠ Prey model not found at {prey_path}")
+                    print(f"⚠ Prey model not found (will use random actions)")
                     
         except Exception as e:
             print(f"⚠ Error in model loading: {e}. Using random actions.")
         
     def _get_other_agent_action(self, agent):
-        """Get action for other agent - use trained model if available, else random"""
+        """Get action for other agent - use custom opponent, trained model, or random"""
+
+        # Tiny exploration for frozen policies to avoid fully deterministic swarms.
+        if self.frozen_policy_epsilon > 0 and random.random() < self.frozen_policy_epsilon:
+            return random.randint(0, 10)
+        
+        # Priority 1: Use custom opponent agent if provided and matches type
+        if self.opponent_agent is not None and self.opponent_type == agent.agent_type:
+            try:
+                obs = agent.get_observation(self.env)
+                state = self.opponent_agent.discretize_state(obs)
+                action = self.opponent_agent.select_action(state, training=False)
+                return action
+            except Exception:
+                pass
+
+        # Priority 2: Use frozen same-species policy for background agents of training species
+        if self.same_species_agent is not None and self.same_species_type == agent.agent_type:
+            try:
+                obs = agent.get_observation(self.env)
+                state = self.same_species_agent.discretize_state(obs)
+                action = self.same_species_agent.select_action(state, training=False)
+                return action
+            except Exception:
+                pass
+        
+        # Priority 3: Use trained model if available
         if agent.agent_type == "PREY" and self.trained_prey_model:
             obs = agent.get_observation(self.env)
             state = self.trained_prey_model.discretize_state(obs)
@@ -123,8 +158,8 @@ class EcoSimEnv(gym.Env):
         # Seed the action space if seed is provided
         if seed is not None:
             self.action_space.seed(seed)
-            import random as python_random
-            python_random.seed(seed)
+            np.random.seed(seed)
+            random.seed(seed)
         # Create environment
         self.env = grid_env(GRID_SUBENV[0], GRID_SUBENV[1])
         
@@ -186,7 +221,7 @@ class EcoSimEnv(gym.Env):
         # Other agents move - use trained models if memory enabled, else random
         for other_agent in self.other_agents:
             if other_agent.is_alive():
-                if self.memory and (self.trained_prey_model or self.trained_predator_model):
+                if self.opponent_agent is not None or self.same_species_agent is not None or (self.memory and (self.trained_prey_model or self.trained_predator_model)):
                     # Use trained model for action selection
                     action = self._get_other_agent_action(other_agent)
                     other_reward = other_agent.action(action, self.env)

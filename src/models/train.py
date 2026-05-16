@@ -12,8 +12,9 @@ import random
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config.config import *
-from config.utils import set_global_seed
+from config.utils import set_global_seed, get_next_run_number
 from environment.gym_env import EcoSimEnv
+from environment.logger import save_environment_log
 from models.Q_learning import QLearningAgent
 
 
@@ -41,7 +42,7 @@ def _collect_episode_metrics(env, q_agent):
     }
 
 
-def train_agent(num_episodes=100, agent_type="PREY", num_prey=4, num_predators=2):
+def train_agent(num_episodes=100, agent_type="PREY", num_prey=4, num_predators=2, run_number=None):
     """
     Train Q-learning agent on EcoSim environment
     
@@ -50,6 +51,7 @@ def train_agent(num_episodes=100, agent_type="PREY", num_prey=4, num_predators=2
         agent_type: "PREY" or "PREDATOR"
         num_prey: Number of other prey agents
         num_predators: Number of predator agents
+        run_number: Run identifier for logging
     
     Returns:
         q_agent: Trained QLearningAgent
@@ -57,7 +59,7 @@ def train_agent(num_episodes=100, agent_type="PREY", num_prey=4, num_predators=2
     """
     
     print(f"\n{'='*60}")
-    print(f"Training {agent_type} Q-Learning Agent")
+    print(f"Training {agent_type} Q-Learning Agent (Run #{run_number})")
     print(f"Episodes: {num_episodes}")
     print(f"Hyperparameters: LR={LEARNING_RATE}, DF={DISCOUNT_FACTOR}")
     print(f"{'='*60}\n")
@@ -79,7 +81,7 @@ def train_agent(num_episodes=100, agent_type="PREY", num_prey=4, num_predators=2
 
     results_dir = Path(__file__).parent / "results"
     results_dir.mkdir(exist_ok=True)
-    log_path = results_dir / f"training_log_{agent_type.lower()}.csv"
+    log_path = results_dir / f"training_log_{agent_type.lower()}_{run_number}.csv"
     if log_path.exists():
         log_path.unlink()
     with open(log_path, "w", newline="") as log_file:
@@ -158,7 +160,7 @@ def train_agent(num_episodes=100, agent_type="PREY", num_prey=4, num_predators=2
     
     # Generate training curves (optional - suppress errors if plotting fails)
     try:
-        from src.models.plotting import plot_training_curves
+        from models.plotting import plot_training_curves
         plot_training_curves(
             str(log_path),
             agent_type=agent_type,
@@ -282,6 +284,15 @@ def main():
     # Set global seed for reproducibility
     set_global_seed()
     
+    # Get run number for this execution
+    run_number = get_next_run_number()
+    print(f"\n{'='*60}")
+    print(f"ECOSIM TRAINING RUN #{run_number}")
+    print(f"{'='*60}")
+    
+    # Save environment documentation
+    save_environment_log(run_number)
+    
     # Ensure results directory exists
     results_dir = Path(__file__).parent / "results"
     results_dir.mkdir(exist_ok=True)    
@@ -296,7 +307,8 @@ def main():
         num_episodes=100,
         agent_type=agent_type,
         num_prey=6,
-        num_predators=2
+        num_predators=2,
+        run_number=run_number
     )
     
     # Evaluate prey agent
@@ -309,17 +321,18 @@ def main():
     )
     
     # Save trained agent using save_model method (properly handles pickling)
-    # Save to src/models/ directory with naming that matches gym_env.py expectations
+    # Save to src/models/ directory with run number
     model_dir = Path(__file__).parent.parent / "models"  # Go up to src, then into models
     model_dir.mkdir(exist_ok=True)
-    model_path = model_dir / f"trained_{agent_type.lower()}.pkl"
+    model_path = model_dir / f"trained_{agent_type.lower()}_{run_number}.pkl"
     prey_agent.save_model(str(model_path))
+    print(f"✓ Model saved: {model_path}")
     
     # Plot results
-    plot_training(prey_rewards, prey_steps, title="Prey Agent Training Progress")
+    plot_training(prey_rewards, prey_steps, title=f"Prey Agent Training Progress (Run #{run_number})")
     
     print("\n" + "="*60)
-    print("Training completed successfully!")
+    print(f"Training run #{run_number} completed successfully!")
     print("="*60 + "\n")
 
 

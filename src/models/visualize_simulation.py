@@ -18,9 +18,9 @@ import argparse
 from pathlib import Path
 import pandas as pd
 
-from src.models.visualizer import visualize_episode, create_animation_frames
-from src.models.live_renderer import render_saved_episode_with_positions
-from src.models.plotting import plot_population_dynamics, plot_training_curves
+from models.visualizer import visualize_episode, create_animation_frames
+from models.live_renderer import render_saved_episode_with_positions
+from models.plotting import plot_population_dynamics, plot_training_curves
 
 
 def main():

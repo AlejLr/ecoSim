@@ -22,7 +22,7 @@ class MultiAgentEcoSimEnv(gym.Env):
     Reward: energy_gained - step_penalty, or death_penalty on death
     """
     
-    def __init__(self, num_prey=4, num_predators=2, map_path=None):
+    def __init__(self, num_prey=12, num_predators=2, map_path=None):
         super(MultiAgentEcoSimEnv, self).__init__()
         
         self.num_prey = num_prey
@@ -107,7 +107,7 @@ class MultiAgentEcoSimEnv(gym.Env):
         # Return observation of all agents (for compatibility, return first agent's obs)
         if self.all_agents:
             return self.all_agents[0].get_observation(self.env)
-        return np.zeros(6, dtype=np.float32)
+        return np.zeros(8, dtype=np.float32)  # Match observation_space shape (8,)
     
     def step(self, actions=None):
         """Execute one step with ALL agents taking Q-learning actions
@@ -240,7 +240,7 @@ class MultiAgentEcoSimEnv(gym.Env):
                 "predator_rewards": dict(self.predator_rewards),
             }
         
-        return np.zeros(6, dtype=np.float32), 0, done, {}
+        return np.zeros(8, dtype=np.float32), 0, done, {}  # Match observation_space shape (8,)
     
     def render(self, mode='human'):
         """Render the environment (optional)"""

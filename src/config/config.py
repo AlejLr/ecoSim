@@ -51,7 +51,7 @@ STEPS_PER_EPISODE = 250         # Max steps per episode
 # REWARDS
 ENERGY_REWARD_SCALE = 1.0       # Reward = energy_gained * scale
 DRINKING_REWARD = 0.5           # Reward for successfully drinking
-REPRODUCTION_REWARD = 0.5        # Reward for successful reproduction
+REPRODUCTION_REWARD = 15.0       # Reward for successful reproduction
 THIRST_PENALTY_THRESHOLD = 20   # If thirst drops below this, additional penalty
 THIRST_CRITICAL_PENALTY = -2.0  # Penalty when thirst is critically low
 DEATH_PENALTY = -10             # Penalty for dying

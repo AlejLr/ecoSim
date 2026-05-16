@@ -15,11 +15,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import numpy as np
 
-from config.utils import set_global_seed
+from config.utils import set_global_seed, get_next_run_number
+from environment.logger import save_environment_log
 from environment.multi_agent_gym_env import MultiAgentEcoSimEnv
 
 
-def run_short(episodes=5, max_steps=100, num_prey=4, num_predators=2):
+def run_short(episodes=5, max_steps=100, num_prey=4, num_predators=2, run_number=None):
     env = MultiAgentEcoSimEnv(num_prey=num_prey, num_predators=num_predators)
 
     all_episode_stats = []
@@ -51,10 +52,10 @@ def run_short(episodes=5, max_steps=100, num_prey=4, num_predators=2):
         avg_pred = np.mean([c[2] for c in episode_counts]) if episode_counts else 0
         all_episode_stats.append({'episode': ep, 'avg_prey': avg_prey, 'avg_predator': avg_pred, 'steps': len(episode_counts)})
 
-        # Save per-episode CSV
+        # Save per-episode CSV with run number
         out_dir = Path(__file__).parent / 'results'
         out_dir.mkdir(exist_ok=True)
-        csv_path = out_dir / f'pop_episode_{ep}.csv'
+        csv_path = out_dir / f'pop_episode_{ep}_run_{run_number}.csv'
         with open(csv_path, 'w', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(['step','prey_count','predator_count'])
@@ -71,4 +72,14 @@ def run_short(episodes=5, max_steps=100, num_prey=4, num_predators=2):
 if __name__ == '__main__':
     # Set global seed for reproducibility
     set_global_seed()
-    run_short(episodes=5, max_steps=100, num_prey=4, num_predators=2)
+    
+    # Get run number for this execution
+    run_number = get_next_run_number()
+    print(f"\n{'='*60}")
+    print(f"POPULATION SIMULATION RUN #{run_number}")
+    print(f"{'='*60}\n")
+    
+    # Save environment documentation
+    save_environment_log(run_number)
+    
+    run_short(episodes=5, max_steps=100, num_prey=4, num_predators=2, run_number=run_number)

@@ -13,7 +13,7 @@ Usage:
 import sys
 import argparse
 from pathlib import Path
-from src.models.plotting import plot_population_dynamics, plot_training_curves, plot_both_species_training
+from models.plotting import plot_population_dynamics, plot_training_curves, plot_both_species_training
 
 
 def main():

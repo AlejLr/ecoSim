@@ -1,0 +1,575 @@
+"""Training protocols for stable Multi-Agent Reinforcement Learning.
+
+Issue 14 & 15: Address MARL Instability
+
+MARL (Multi-Agent Reinforcement Learning) presents unique challenges:
+
+1. **Non-Stationarity**: Other agents' policies change during training,
+   violating standard RL convergence assumptions (stationary environment).
+   
+2. **Independent Learners Problem**: Each agent independently optimizes its
+   policy, but changing one agent's policy invalidates all other agents'
+   value function estimates (Q-table becomes outdated).
+
+3. **Convergence Guarantees**: Standard Q-learning convergence proofs assume
+   a stationary environment. Multi-agent environments are non-stationary
+   by definition.
+
+This module implements three protocols with increasing complexity:
+
+Protocol 1: FIXED OPPONENTS
+- Train one species while others use fixed policy (random or pre-trained)
+- Ensures stationary environment for learning agent
+- Baseline approach, high stability, limited interaction
+- Phases: (1) Train PREY vs random PREDATORS
+           (2) Train PREDATOR vs fixed PREY
+
+Protocol 2: ALTERNATING TRAINING  
+- Take turns: Train PREY for N episodes, freeze, train PREDATOR, freeze, repeat
+- Reduces non-stationarity by limiting how often policies change
+- Moderate stability, more realistic species interactions
+- Cycles multiple times to allow adaptation
+
+Protocol 3: CO-LEARNING (Both Learn Simultaneously)
+- Both species learn at the same time
+- Most realistic, most unstable
+- Only use after proving stability with protocols 1-2
+- Requires explicit non-stationarity awareness
+
+References:
+- Tan, M. (1993). Multi-Agent Reinforcement Learning: Independent vs Cooperative Agents
+- Busoniu et al. (2008). A Comprehensive Survey of MARL
+- Palmer et al. (2018). Lenient Multi-Agent Deep RL
+"""
+
+import csv
+from pathlib import Path
+from typing import Tuple, List, Dict
+import numpy as np
+import matplotlib.pyplot as plt
+from datetime import datetime
+
+from config.config import *
+from config.utils import set_global_seed, get_next_run_number
+from environment.gym_env import EcoSimEnv
+from environment.logger import save_environment_log
+from models.Q_learning import QLearningAgent
+
+
+class TrainingProtocol:
+    """Base class for training protocols."""
+    
+    def __init__(self, agent_type: str, num_episodes: int, run_number: int):
+        self.agent_type = agent_type
+        self.num_episodes = num_episodes
+        self.run_number = run_number
+        self.results_dir = Path(__file__).parent / "results"
+        self.results_dir.mkdir(exist_ok=True)
+        self.metrics = {
+            'episodes': [],
+            'rewards': [],
+            'steps': [],
+            'eval_rewards': [],
+            'populations': [],  # Store population snapshots
+        }
+    
+    def _collect_episode_snapshot(self, env: EcoSimEnv):
+        """Collect population and energy metrics from environment."""
+        all_agents = [env.agent] + list(env.other_agents)
+        alive_agents = [agent for agent in all_agents if agent.is_alive()]
+        alive_prey = [agent for agent in alive_agents if agent.agent_type == "PREY"]
+        alive_predators = [agent for agent in alive_agents if agent.agent_type == "PREDATOR"]
+        
+        return {
+            'prey_population': len(alive_prey),
+            'predator_population': len(alive_predators),
+            'avg_prey_energy': float(np.mean([a.energy for a in alive_prey] or [0])),
+            'avg_predator_energy': float(np.mean([a.energy for a in alive_predators] or [0])),
+        }
+
+    def _episode_seed(self, cycle: int, phase: int, episode: int) -> int:
+        """Build a deterministic but distinct seed for a cycle/phase/episode."""
+        return SEED + (self.run_number * 100000) + (cycle * 1000) + (phase * 100) + episode
+
+    def _clone_agent_policy(self, source_agent: QLearningAgent) -> QLearningAgent:
+        """Create a frozen snapshot of an agent policy (Q-table + exploration params)."""
+        cloned_agent = QLearningAgent(
+            agent_id=source_agent.agent_id,
+            num_actions=source_agent.num_actions,
+            num_states=source_agent.num_states,
+        )
+        cloned_agent.epsilon = source_agent.epsilon
+        cloned_agent.learning_rate = source_agent.learning_rate
+        cloned_agent.discount_factor = source_agent.discount_factor
+
+        for state, q_values in source_agent.q_table.items():
+            cloned_agent.q_table[state] = np.array(q_values, copy=True)
+
+        return cloned_agent
+    
+    def train(self) -> Dict:
+        """Train agent according to protocol. Return metrics."""
+        raise NotImplementedError("Subclasses must implement train()")
+    
+    def _log_progress(self, episode: int, reward: float, epsilon: float, phase: str = ""):
+        """Log training progress."""
+        if (episode + 1) % max(10, self.num_episodes // 10) == 0:
+            phase_str = f" [{phase}]" if phase else ""
+            print(f"  Episode {episode+1:4d}/{self.num_episodes} | "
+                  f"Reward: {reward:8.2f} | Epsilon: {epsilon:.3f}{phase_str}")
+    
+    def _evaluate_greedy(self, env: EcoSimEnv, agent: QLearningAgent, num_evals: int = 10, seed_base: int | None = None) -> float:
+        """Evaluate agent with greedy policy (epsilon=0)."""
+        original_epsilon = agent.epsilon
+        agent.epsilon = 0.0
+        
+        eval_rewards = []
+        for eval_index in range(num_evals):
+            reset_seed = None if seed_base is None else seed_base + eval_index
+            obs = env.reset(seed=reset_seed)
+            state = agent.discretize_state(obs)
+            episode_reward = 0
+            done = False
+            
+            while not done:
+                action = agent.select_action(state, training=False)
+                next_obs, reward, done, info = env.step(action)
+                next_state = agent.discretize_state(next_obs)
+                state = next_state
+                episode_reward += reward
+            
+            eval_rewards.append(episode_reward)
+        
+        agent.epsilon = original_epsilon
+        return np.mean(eval_rewards)
+    
+    def _save_results(self, protocol_name: str, additional_info: str = ""):
+        """Save training results to CSV with population metrics."""
+        csv_path = self.results_dir / f"protocol_{protocol_name}_{self.agent_type.lower()}_{self.run_number}.csv"
+        
+        with open(csv_path, 'w', newline='', encoding='utf-8') as f:
+            # Include population metrics if available
+            if self.metrics['populations']:
+                fieldnames = ['episode', 'reward', 'steps', 'eval_reward', 
+                             'prey_population', 'predator_population', 
+                             'avg_prey_energy', 'avg_predator_energy']
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                
+                for ep, (reward, steps, eval_r, pop) in enumerate(zip(
+                    self.metrics['rewards'],
+                    self.metrics['steps'],
+                    self.metrics['eval_rewards'],
+                    self.metrics['populations']
+                )):
+                    writer.writerow({
+                        'episode': ep + 1,
+                        'reward': reward,
+                        'steps': steps,
+                        'eval_reward': eval_r,
+                        'prey_population': pop.get('prey_population', 0),
+                        'predator_population': pop.get('predator_population', 0),
+                        'avg_prey_energy': pop.get('avg_prey_energy', 0),
+                        'avg_predator_energy': pop.get('avg_predator_energy', 0),
+                    })
+            else:
+                # Fallback to basic CSV without population data
+                writer = csv.writer(f)
+                writer.writerow(['episode', 'reward', 'steps', 'eval_reward'])
+                for ep, (reward, steps, eval_r) in enumerate(zip(
+                    self.metrics['rewards'],
+                    self.metrics['steps'],
+                    self.metrics['eval_rewards']
+                )):
+                    writer.writerow([ep + 1, reward, steps, eval_r])
+        
+        print(f"  ✓ Results saved: {csv_path.name}")
+        if additional_info:
+            print(f"    {additional_info}")
+        
+        return csv_path
+
+
+class FixedOpponentProtocol(TrainingProtocol):
+    """Protocol 1: Train one agent while other uses fixed (random) policy.
+    
+    Guarantees stationary environment for learning agent.
+    Most stable, suitable for initial training.
+    """
+    
+    def train(self) -> Dict:
+        """Train with fixed random opponents."""
+        
+        print(f"\n{'='*70}")
+        print(f"PROTOCOL 1: FIXED OPPONENTS")
+        print(f"{'='*70}")
+        print(f"Agent Type: {self.agent_type}")
+        print(f"Episodes: {self.num_episodes}")
+        print(f"Opponent Policy: RANDOM (non-learning)")
+        print(f"Environment: STATIONARY ✓")
+        print(f"Convergence: Good (standard RL assumptions hold)")
+        print(f"{'='*70}\n")
+        
+        # Create environment with memory=False (random opponents)
+        env = EcoSimEnv(
+            agent_id=0,
+            num_prey=6,
+            num_predators=2,
+            agent_type=self.agent_type,
+            map_path=None,
+            memory=False  # Fixed random policy
+        )
+        
+        agent = QLearningAgent(agent_id=0, num_actions=11, num_states=5400)
+        
+        # Training loop
+        for episode in range(self.num_episodes):
+            obs = env.reset(seed=self._episode_seed(0, 0, episode))
+            state = agent.discretize_state(obs)
+            episode_reward = 0
+            episode_step_count = 0
+            done = False
+            
+            while not done:
+                action = agent.select_action(state, training=True)
+                next_obs, reward, done, info = env.step(action)
+                next_state = agent.discretize_state(next_obs)
+                
+                agent.update(state, action, reward, next_state, done)
+                
+                state = next_state
+                episode_reward += reward
+                episode_step_count += 1
+            
+            agent.decay_epsilon()
+            
+            self.metrics['episodes'].append(episode + 1)
+            self.metrics['rewards'].append(episode_reward)
+            self.metrics['steps'].append(episode_step_count)
+            self.metrics['populations'].append(self._collect_episode_snapshot(env))
+            
+            self._log_progress(episode, episode_reward, agent.epsilon)
+        
+        # Evaluate
+        print(f"\nEvaluating (greedy policy)...")
+        eval_reward = self._evaluate_greedy(env, agent, seed_base=self._episode_seed(0, 9, 0))
+        self.metrics['eval_rewards'] = [eval_reward] * len(self.metrics['rewards'])
+        
+        print(f"✓ Final evaluation reward: {eval_reward:.2f}")
+        
+        # Save model
+        model_path = self.results_dir.parent / f"trained_{self.agent_type.lower()}_{self.run_number}_protocol1.pkl"
+        agent.save_model(str(model_path))
+        
+        self._save_results("fixed_opponents", f"Model: {model_path.name}")
+        
+        return {
+            'protocol': 'fixed_opponents',
+            'agent_type': self.agent_type,
+            'episodes': self.num_episodes,
+            'final_eval': eval_reward,
+            'training_rewards': self.metrics['rewards'],
+            'agent': agent,
+            'model_path': model_path,
+        }
+
+
+class AlternatingTrainingProtocol(TrainingProtocol):
+    """Protocol 2: Alternating training of prey and predator.
+    
+    Train PREY for N episodes, freeze, train PREDATOR for N episodes, freeze.
+    Reduces non-stationarity by limiting policy change frequency.
+    Moderate stability, more realistic interactions.
+    """
+    
+    def train(self, num_cycles: int = 2) -> Dict:
+        """Train with alternating phases and carry agents forward across cycles."""
+
+        print(f"\n{'='*70}")
+        print(f"PROTOCOL 2: ALTERNATING TRAINING (STATEFUL)")
+        print(f"{'='*70}")
+        print(f"Num Cycles: {num_cycles}")
+        print(f"Episodes per Agent: {self.num_episodes}")
+        print(f"Cycle 1: train both species from scratch")
+        print(f"Cycle 2+: continue from previous cycle's learned agents")
+        print(f"Each episode gets a distinct seed so the map changes over time")
+        print(f"{'='*70}\n")
+
+        all_results = {
+            'cycles': [],
+            'prey_agents': [],
+            'predator_agents': [],
+        }
+
+        prey_agent = None
+        predator_agent = None
+
+        for cycle in range(num_cycles):
+            print(f"\n--- CYCLE {cycle + 1}/{num_cycles} ---\n")
+
+            if prey_agent is None:
+                prey_agent = QLearningAgent(agent_id=0, num_actions=11, num_states=5400)
+            else:
+                prey_agent.epsilon = EPSILON_START
+
+            if predator_agent is None:
+                predator_agent = QLearningAgent(agent_id=0, num_actions=11, num_states=5400)
+            else:
+                predator_agent.epsilon = EPSILON_START
+
+            print(f"PHASE A: Training PREY (cycle {cycle + 1})...")
+            prey_opponent = predator_agent if cycle > 0 else None
+            if prey_opponent is None:
+                print(f"  (PREDATOR: random)")
+            else:
+                print(f"  (PREDATOR: carried over from previous cycle)")
+
+            prey_result = self._train_species_phase(
+                agent=prey_agent,
+                agent_type="PREY",
+                cycle=cycle + 1,
+                phase_name="A_prey",
+                phase_seed_offset=0,
+                opponent_agent=prey_opponent,
+                opponent_type="PREDATOR",
+            )
+            prey_agent = prey_result['agent']
+
+            print(f"\nPHASE B: Training PREDATOR (cycle {cycle + 1})...")
+            print(f"  (PREY policy frozen from phase A)")
+            predator_result = self._train_species_phase(
+                agent=predator_agent,
+                agent_type="PREDATOR",
+                cycle=cycle + 1,
+                phase_name="B",
+                phase_seed_offset=1,
+                opponent_agent=prey_agent,
+                opponent_type="PREY",
+            )
+            predator_agent = predator_result['agent']
+
+            all_results['prey_agents'].append(prey_agent)
+            all_results['predator_agents'].append(predator_agent)
+            all_results['cycles'].append({
+                'cycle': cycle + 1,
+                'prey_result': prey_result,
+                'predator_result': predator_result,
+            })
+
+            print(f"✓ PREDATOR eval reward: {predator_result['eval']:.2f}")
+
+        self._save_alternating_results(all_results, num_cycles)
+        return all_results
+
+    def _train_species_phase(
+        self,
+        agent: QLearningAgent,
+        agent_type: str,
+        cycle: int,
+        phase_name: str,
+        phase_seed_offset: int,
+        opponent_agent=None,
+        opponent_type=None,
+    ) -> Dict:
+        """Train one species for one phase, optionally against a carried opponent."""
+
+        frozen_same_species_agent = self._clone_agent_policy(agent)
+
+        env = EcoSimEnv(
+            agent_id=0,
+            num_prey=6,
+            num_predators=2,
+            agent_type=agent_type,
+            map_path=None,
+            memory=False,
+            opponent_agent=opponent_agent,
+            opponent_type=opponent_type,
+            same_species_agent=frozen_same_species_agent,
+            same_species_type=agent_type,
+            frozen_policy_epsilon=0.01,
+        )
+
+        if opponent_agent is not None and opponent_type is not None:
+            print(f"✓ Using carried {opponent_type} opponent")
+
+        rewards = []
+        steps = []
+        populations = []
+
+        for episode in range(self.num_episodes):
+            obs = env.reset(seed=self._episode_seed(cycle, phase_seed_offset, episode))
+            state = agent.discretize_state(obs)
+            episode_reward = 0
+            episode_step_count = 0
+            done = False
+
+            while not done:
+                action = agent.select_action(state, training=True)
+                next_obs, reward, done, info = env.step(action)
+                next_state = agent.discretize_state(next_obs)
+
+                agent.update(state, action, reward, next_state, done)
+
+                state = next_state
+                episode_reward += reward
+                episode_step_count += 1
+
+            agent.decay_epsilon()
+
+            rewards.append(episode_reward)
+            steps.append(episode_step_count)
+            populations.append(self._collect_episode_snapshot(env))
+
+            self._log_progress(episode, episode_reward, agent.epsilon, phase=phase_name)
+
+        eval_reward = self._evaluate_greedy(
+            env,
+            agent,
+            seed_base=self._episode_seed(cycle, phase_seed_offset, 1000),
+        )
+
+        model_path = self.results_dir.parent / f"trained_{agent_type.lower()}_{self.run_number}_protocol2_cycle{cycle}.pkl"
+        agent.save_model(str(model_path))
+
+        print(f"  ✓ Eval: {eval_reward:.2f}")
+
+        return {
+            'agent': agent,
+            'rewards': rewards,
+            'steps': steps,
+            'populations': populations,
+            'eval': eval_reward,
+            'model_path': model_path,
+        }
+
+    def _save_alternating_results(self, all_results: Dict, num_cycles: int):
+        """Save alternating training results with population metrics."""
+
+        csv_path = self.results_dir / f"protocol_alternating_{self.run_number}.csv"
+
+        with open(csv_path, 'w', newline='', encoding='utf-8') as f:
+            fieldnames = [
+                'cycle', 'phase', 'agent_type', 'episode', 'reward', 'steps', 'eval_reward',
+                'prey_population', 'predator_population', 'avg_prey_energy', 'avg_predator_energy',
+            ]
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+
+            for cycle_data in all_results['cycles']:
+                cycle_num = cycle_data['cycle']
+
+                prey_data = cycle_data['prey_result']
+                for ep, reward in enumerate(prey_data['rewards']):
+                    pop = prey_data['populations'][ep] if ep < len(prey_data['populations']) else {}
+                    writer.writerow({
+                        'cycle': cycle_num,
+                        'phase': 'A',
+                        'agent_type': 'PREY',
+                        'episode': ep + 1,
+                        'reward': reward,
+                        'steps': prey_data['steps'][ep] if ep < len(prey_data['steps']) else 0,
+                        'eval_reward': prey_data['eval'],
+                        'prey_population': pop.get('prey_population', 0),
+                        'predator_population': pop.get('predator_population', 0),
+                        'avg_prey_energy': pop.get('avg_prey_energy', 0),
+                        'avg_predator_energy': pop.get('avg_predator_energy', 0),
+                    })
+
+                pred_data = cycle_data['predator_result']
+                for ep, reward in enumerate(pred_data['rewards']):
+                    pop = pred_data['populations'][ep] if ep < len(pred_data['populations']) else {}
+                    writer.writerow({
+                        'cycle': cycle_num,
+                        'phase': 'B',
+                        'agent_type': 'PREDATOR',
+                        'episode': ep + 1,
+                        'reward': reward,
+                        'steps': pred_data['steps'][ep] if ep < len(pred_data['steps']) else 0,
+                        'eval_reward': pred_data['eval'],
+                        'prey_population': pop.get('prey_population', 0),
+                        'predator_population': pop.get('predator_population', 0),
+                        'avg_prey_energy': pop.get('avg_prey_energy', 0),
+                        'avg_predator_energy': pop.get('avg_predator_energy', 0),
+                    })
+
+        print(f"  ✓ Alternating results saved: {csv_path.name}")
+
+
+class CoLearningProtocol(TrainingProtocol):
+    """Protocol 3: Co-learning (both agents learn simultaneously).
+    
+    Most realistic but most unstable.
+    Use only after demonstrating stability with protocols 1-2.
+    Explicitly acknowledges non-stationarity.
+    """
+    
+    def train(self) -> Dict:
+        """Train with co-learning."""
+        
+        print(f"\n{'='*70}")
+        print(f"PROTOCOL 3: CO-LEARNING (BOTH AGENTS LEARN)")
+        print(f"{'='*70}")
+        print(f"Episodes: {self.num_episodes}")
+        print(f"PREY & PREDATOR: Both training simultaneously")
+        print(f"Environment: NON-STATIONARY ✗ (policies change every step)")
+        print(f"Convergence: Poor (violates RL convergence assumptions)")
+        print(f"Use Only After: Verifying stability with Protocols 1-2")
+        print(f"Acknowledgment: Results may be unstable and less reproducible")
+        print(f"{'='*70}\n")
+        
+        from environment.multi_agent_gym_env import MultiAgentEcoSimEnv
+        
+        env = MultiAgentEcoSimEnv(num_prey=6, num_predators=2)
+        
+        # Would need to implement full multi-agent learning
+        # For now, document the approach
+        
+        print("⚠ Co-learning protocol requires multi-agent gym environment")
+        print("  Documented but not yet implemented (requires careful instability handling)")
+        
+        return {
+            'protocol': 'co_learning',
+            'status': 'documented_not_implemented',
+            'note': 'Requires explicit non-stationarity awareness and stabilization techniques'
+        }
+
+
+def compare_protocols():
+    """Generate comparison table of training protocols."""
+    
+    comparison = """
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                   MARL TRAINING PROTOCOL COMPARISON TABLE                      ║
+╠═══════════════════╦═════════════════╦════════════════════╦════════════════════╣
+║ Aspect            ║ Fixed Opponents ║ Alternating Train  ║ Co-Learning        ║
+╠═══════════════════╬═════════════════╬════════════════════╬════════════════════╣
+║ Environment       ║ Stationary ✓    ║ Semi-Stationary    ║ Non-Stationary ✗   ║
+║ Stability         ║ High            ║ Moderate           ║ Low                ║
+║ Realism           ║ Low             ║ Moderate           ║ High               ║
+║ Convergence       ║ Guaranteed*     ║ Partial            ║ None               ║
+║ Interaction       ║ Limited         ║ Moderate           ║ Full               ║
+║ Learning Speed    ║ Fast            ║ Moderate           ║ Slow/Unstable      ║
+║ Reproducibility   ║ High            ║ High               ║ Low                ║
+║ Comm. Complexity  ║ Simple          ║ Simple             ║ Complex            ║
+╠═══════════════════╬═════════════════╬════════════════════╬════════════════════╣
+║ Use When          ║ Starting Out    ║ Exploring Stability║ After 1&2 Proven   ║
+║ Training Phase    ║ 1: PREY→random  ║ Cycle: PREY/PRED   ║ Both Simultaneous  ║
+║                   ║ 2: PRED→random  ║ Both use latest    ║                    ║
+╠═══════════════════╬═════════════════╬════════════════════╬════════════════════╣
+║ Model Outputs     ║ trained_*_p1.pkl║ trained_*_p2_c*.pkl║ trained_*_p3.pkl   ║
+║ CSV Output        ║ protocol_fixed_* ║ protocol_altern_* ║ protocol_co_*      ║
+╚═══════════════════╩═════════════════╩════════════════════╩════════════════════╝
+
+* Standard Q-learning convergence proofs apply
+
+RECOMMENDATION:
+1. Start with Protocol 1 (Fixed Opponents) - Baseline
+2. Move to Protocol 2 (Alternating) - Explore interactions
+3. Only use Protocol 3 (Co-Learning) after 1&2 demonstrate stability
+   and document instability explicitly in thesis
+
+This progression acknowledges the MARL non-stationarity problem and proves
+that the ecosystem simulation is sound before introducing learning complexity.
+"""
+    
+    return comparison

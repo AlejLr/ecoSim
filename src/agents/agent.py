@@ -255,8 +255,9 @@ class Agent():
             death_penalty = DEATH_PENALTY
         
         if self.q_learning is not None:
-            # Create a terminal state (all zeros) and apply the death penalty
-            terminal_state = tuple([0] * self.q_learning.num_states)
+            # Create a terminal state (all zeros) matching 8-dim observation space
+            # Terminal state must be 8-element tuple, not 5400-element (num_states is total state space)
+            terminal_state = (0, 0, 0, 0, 0, 0, 0, 0)
             self.q_learning.apply_death_penalty(terminal_state, death_penalty)
         
         if self in environment.agents:
@@ -431,8 +432,8 @@ class Predator(Agent):
         from config.config import DEATH_PENALTY
         prey.die(environment, death_penalty=DEATH_PENALTY)  # Remove prey immediately (prevents double-kills)
         
-        # Predator gains energy with 10% efficiency (realistic energy transfer)
-        predation_energy_transfer = energy_gained * 0.10
+        # Predator gains energy with 25% efficiency (realistic energy transfer)
+        predation_energy_transfer = energy_gained * 0.25
         self.energy = min(MAX_AGENT_ENERGY, self.energy + predation_energy_transfer)
 
         current_prey_count = len([
