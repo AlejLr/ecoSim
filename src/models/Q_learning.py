@@ -173,7 +173,7 @@ def train_agent(env, agent, num_episodes=None):
     for episode in range(num_episodes):
         if episode % 10 == 0:
             print(f"  Starting episode {episode + 1}...", end=' ', flush=True)
-        
+         
         obs = env.reset()
         state = agent.discretize_state(obs)
         
