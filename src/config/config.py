@@ -7,7 +7,7 @@ MAX_SIMULATION_STEPS = 1000
 MAX_FPS = 5
 
 RENDER = True
-VERBOSE = False
+VERBOSE = True
 SAVE_STATS = True
 
 # RANDOM SEED FOR REPRODUCIBILITY
@@ -31,7 +31,7 @@ ENERGY_DECAY_PER_STEP = 0.3     # Agents lose 0.3 energy per step (rebalanced fo
 MOVEMENT_ENERGY_COST = 0.15     # Extra energy cost when a move action is taken
 MAX_THIRST = 100
 THIRST_DECAY_PER_STEP = 0.5     # Agents lose 0.5 thirst per step (reduced for sustainability)
-VISION_RADIUS = 4               # All agents can see 4 tiles away
+VISION_RADIUS = 6               # All agents can see 6 tiles away
 ACTION_RADIUS = 3               # All agents can act within 3 tiles (increased for predator hunting)
 
 # AGENT STARTING ENERGY (below max to require learning)
@@ -45,7 +45,7 @@ EPSILON_START = 1.0             # Exploration factor (start at 100% random)
 EPSILON_DECAY = 0.995           # Decay exploration each episode
 EPSILON_MIN = 0.01              # Don't go below 1% random
 NUM_EPISODES = 1000             # Total training episodes
-STEPS_PER_EPISODE = 250         # Max steps per episode
+STEPS_PER_EPISODE = 500         # Max steps per episode
 
 
 # REWARDS
@@ -64,6 +64,59 @@ PREDATOR_DETECTION_BONUS = 0.0  # Small bonus when predator detects prey (kept 0
 PREY_DETECTION_PENALTY = 0.0    # Small penalty when prey detects predator (avoid large penalties)
 PREY_PREDATION_SUSTAINABILITY_THRESHOLD = 75  # Below this prey count, hunting reward is reduced
 
+# Reward equation for each agent
+# Reward function:
+# For each agent, reward depends on the event e ∈ {step, eat, drink, reproduce}.
+#
+# Generic:
+# R(a,e) =
+#   R_step(a)       if e = step
+#   R_eat(a)        if e = eat
+#   R_drink(a)      if e = drink
+#   R_reproduce(a)  if e = reproduce
+#
+# Step reward:
+# R_step(a) = rho_step
+#           + I[h(a) < h_min] * rho_thirst
+#           + I[d(a)] * rho_detect(a)
+#
+# Prey:
+# R_step_prey = rho_step
+#             + I[h < h_min] * rho_thirst
+#             + I[d_pred] * rho_pred_detect
+#
+# R_eat_prey       = rho_step + alpha_E * G_grass
+# R_drink_prey     = rho_step + rho_drink
+# R_reproduce_prey = rho_step + rho_repr
+#
+# Predator:
+# R_step_pred = rho_step
+#             + I[h < h_min] * rho_thirst
+#             + I[d_prey] * rho_prey_detect
+#
+# R_eat_pred = rho_step
+#            + alpha_E * 0.25 * G_prey
+#            + rho_hunt * min(1, N_prey / N_thresh)
+#
+# R_drink_pred     = rho_step + rho_drink
+# R_reproduce_pred = rho_step + rho_repr
+#
+# Compact event-based form:
+# R_prey = rho_step
+#        + rho_thirst * I[h < h_min]
+#        + rho_drink * I[e == drink]
+#        + alpha_E * G_grass * I[e == eat]
+#        + rho_repr * I[e == reproduce]
+#        + rho_pred_detect * I[d_pred]
+#
+# R_pred = rho_step
+#        + rho_thirst * I[h < h_min]
+#        + rho_drink * I[e == drink]
+#        + alpha_E * 0.25 * G_prey * I[e == eat]
+#        + rho_hunt * min(1, N_prey / N_thresh) * I[e == eat]
+#        + rho_repr * I[e == reproduce]
+#        + rho_prey_detect * I[d_prey]
+
 # REPRODUCTION
 REPRODUCTION_ENABLED = True     # Enable prey reproduction
 PREY_REPRODUCTION_THRESHOLD = 60    # Min energy needed to reproduce (was 70, now delayed)
@@ -75,13 +128,13 @@ PREY_CARRYING_CAPACITY = int(GRID_SUBENV[0] * GRID_SUBENV[1] * PREY_CARRYING_CAP
 PREY_REPRODUCTION_COOLDOWN = 5
 PREY_REPRODUCTION_PROB_SCALE = 0.8  # Reproduction probability = (energy_surplus / max_surplus) * scale
 PREDATOR_REPRODUCTION_ENABLED = True
-PREDATOR_REPRODUCTION_THRESHOLD = 80  # Min energy (was 85, now more achievable)
+PREDATOR_REPRODUCTION_THRESHOLD = 70  # Min energy (lowered for more reproduction opportunities)
 PREDATOR_REPRODUCTION_ENERGY_COST = 35
 PREDATOR_OFFSPRING_ENERGY = 45
 PREDATOR_REPRODUCTION_SEARCH_RADIUS = 2
 PREDATOR_REPRODUCTION_COOLDOWN = 8
 PREDATOR_REPRODUCTION_PROB_SCALE = 0.7  # Higher chance than prey (encourage pack formation)
-PREDATOR_PREY_RATIO_FOR_REPRODUCTION = 0.1  # Max predators = prey_count * this ratio
+PREDATOR_PREY_RATIO_FOR_REPRODUCTION = 0.5  # Max predators = prey_count * this ratio
 
 # COLORS
 colors = {

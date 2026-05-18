@@ -43,6 +43,7 @@ References:
 """
 
 import csv
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Tuple, List, Dict
 import numpy as np
@@ -50,9 +51,10 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 
 from config.config import *
-from config.utils import set_global_seed, get_next_run_number
+from config.utils import set_global_seed, get_next_run_number, get_latest_model_path
 from environment.gym_env import EcoSimEnv
 from environment.logger import save_environment_log
+from agents.agent import Predator
 from models.Q_learning import QLearningAgent
 
 
@@ -87,6 +89,24 @@ class TrainingProtocol:
             'avg_predator_energy': float(np.mean([a.energy for a in alive_predators] or [0])),
         }
 
+    @contextmanager
+    def _track_predation_events(self):
+        """Count successful predator hunts during a block of environment steps."""
+        original_predator_eat = Predator.eat
+        tracker = {'count': 0}
+
+        def wrapped_predator_eat(predator_self, *args, **kwargs):
+            reward = original_predator_eat(predator_self, *args, **kwargs)
+            if reward > 0:
+                tracker['count'] += 1
+            return reward
+
+        Predator.eat = wrapped_predator_eat
+        try:
+            yield tracker
+        finally:
+            Predator.eat = original_predator_eat
+
     def _episode_seed(self, cycle: int, phase: int, episode: int) -> int:
         """Build a deterministic but distinct seed for a cycle/phase/episode."""
         return SEED + (self.run_number * 100000) + (cycle * 1000) + (phase * 100) + episode
@@ -106,6 +126,13 @@ class TrainingProtocol:
             cloned_agent.q_table[state] = np.array(q_values, copy=True)
 
         return cloned_agent
+
+    def _load_latest_saved_agent(self, agent_type: str) -> QLearningAgent | None:
+        """Load the most recently saved model for an agent type, if available."""
+        latest_model_path = get_latest_model_path(agent_type)
+        if latest_model_path is None:
+            return None
+        return QLearningAgent.load_model_from_file(str(latest_model_path))
     
     def train(self) -> Dict:
         """Train agent according to protocol. Return metrics."""
@@ -118,12 +145,20 @@ class TrainingProtocol:
             print(f"  Episode {episode+1:4d}/{self.num_episodes} | "
                   f"Reward: {reward:8.2f} | Epsilon: {epsilon:.3f}{phase_str}")
     
-    def _evaluate_greedy(self, env: EcoSimEnv, agent: QLearningAgent, num_evals: int = 10, seed_base: int | None = None) -> float:
+    def _evaluate_greedy(
+        self,
+        env: EcoSimEnv,
+        agent: QLearningAgent,
+        num_evals: int = 10,
+        seed_base: int | None = None,
+        track_predation: bool = False,
+    ):
         """Evaluate agent with greedy policy (epsilon=0)."""
         original_epsilon = agent.epsilon
         agent.epsilon = 0.0
         
         eval_rewards = []
+        eval_predation_events = []
         for eval_index in range(num_evals):
             reset_seed = None if seed_base is None else seed_base + eval_index
             obs = env.reset(seed=reset_seed)
@@ -131,17 +166,27 @@ class TrainingProtocol:
             episode_reward = 0
             done = False
             
-            while not done:
-                action = agent.select_action(state, training=False)
-                next_obs, reward, done, info = env.step(action)
-                next_state = agent.discretize_state(next_obs)
-                state = next_state
-                episode_reward += reward
+            with self._track_predation_events() as predation_tracker:
+                while not done:
+                    action = agent.select_action(state, training=False)
+                    next_obs, reward, done, info = env.step(action)
+                    next_state = agent.discretize_state(next_obs)
+                    state = next_state
+                    episode_reward += reward
             
             eval_rewards.append(episode_reward)
+            eval_predation_events.append(predation_tracker['count'])
         
         agent.epsilon = original_epsilon
-        return np.mean(eval_rewards)
+        if track_predation:
+            return {
+                'avg_reward': float(np.mean(eval_rewards)),
+                'avg_predation_events': float(np.mean(eval_predation_events)) if eval_predation_events else 0.0,
+                'total_predation_events': int(sum(eval_predation_events)),
+                'eval_rewards': eval_rewards,
+                'predation_events': eval_predation_events,
+            }
+        return float(np.mean(eval_rewards))
     
     def _save_results(self, protocol_name: str, additional_info: str = ""):
         """Save training results to CSV with population metrics."""
@@ -282,7 +327,7 @@ class AlternatingTrainingProtocol(TrainingProtocol):
     Moderate stability, more realistic interactions.
     """
     
-    def train(self, num_cycles: int = 2) -> Dict:
+    def train(self, num_cycles: int = 2, start_from_latest: bool = True) -> Dict:
         """Train with alternating phases and carry agents forward across cycles."""
 
         print(f"\n{'='*70}")
@@ -290,7 +335,10 @@ class AlternatingTrainingProtocol(TrainingProtocol):
         print(f"{'='*70}")
         print(f"Num Cycles: {num_cycles}")
         print(f"Episodes per Agent: {self.num_episodes}")
-        print(f"Cycle 1: train both species from scratch")
+        if start_from_latest:
+            print(f"Cycle 1: resume from latest saved prey/predator models when available")
+        else:
+            print(f"Cycle 1: train both species from scratch")
         print(f"Cycle 2+: continue from previous cycle's learned agents")
         print(f"Each episode gets a distinct seed so the map changes over time")
         print(f"{'='*70}\n")
@@ -301,8 +349,15 @@ class AlternatingTrainingProtocol(TrainingProtocol):
             'predator_agents': [],
         }
 
-        prey_agent = None
-        predator_agent = None
+        prey_agent = self._load_latest_saved_agent('PREY') if start_from_latest else None
+        predator_agent = self._load_latest_saved_agent('PREDATOR') if start_from_latest else None
+
+        if prey_agent is not None:
+            print("✓ Resumed PREY from latest saved model")
+        if predator_agent is not None:
+            print("✓ Resumed PREDATOR from latest saved model")
+        if start_from_latest and prey_agent is None and predator_agent is None:
+            print("(No saved models found; starting from scratch)")
 
         for cycle in range(num_cycles):
             print(f"\n--- CYCLE {cycle + 1}/{num_cycles} ---\n")
@@ -395,6 +450,7 @@ class AlternatingTrainingProtocol(TrainingProtocol):
         rewards = []
         steps = []
         populations = []
+        predation_events = []
 
         for episode in range(self.num_episodes):
             obs = env.reset(seed=self._episode_seed(cycle, phase_seed_offset, episode))
@@ -403,42 +459,54 @@ class AlternatingTrainingProtocol(TrainingProtocol):
             episode_step_count = 0
             done = False
 
-            while not done:
-                action = agent.select_action(state, training=True)
-                next_obs, reward, done, info = env.step(action)
-                next_state = agent.discretize_state(next_obs)
+            with self._track_predation_events() as predation_tracker:
+                while not done:
+                    action = agent.select_action(state, training=True)
+                    next_obs, reward, done, info = env.step(action)
+                    next_state = agent.discretize_state(next_obs)
 
-                agent.update(state, action, reward, next_state, done)
+                    agent.update(state, action, reward, next_state, done)
 
-                state = next_state
-                episode_reward += reward
-                episode_step_count += 1
+                    state = next_state
+                    episode_reward += reward
+                    episode_step_count += 1
 
             agent.decay_epsilon()
 
             rewards.append(episode_reward)
             steps.append(episode_step_count)
             populations.append(self._collect_episode_snapshot(env))
+            predation_events.append(predation_tracker['count'])
 
             self._log_progress(episode, episode_reward, agent.epsilon, phase=phase_name)
+            if (episode + 1) % max(10, self.num_episodes // 10) == 0:
+                print(f"    Predation events (last episode): {predation_tracker['count']}")
 
-        eval_reward = self._evaluate_greedy(
+        avg_train_predation = float(np.mean(predation_events)) if predation_events else 0.0
+        eval_result = self._evaluate_greedy(
             env,
             agent,
             seed_base=self._episode_seed(cycle, phase_seed_offset, 1000),
+            track_predation=True,
         )
+        eval_reward = eval_result['avg_reward']
 
         model_path = self.results_dir.parent / f"trained_{agent_type.lower()}_{self.run_number}_protocol2_cycle{cycle}.pkl"
         agent.save_model(str(model_path))
 
-        print(f"  ✓ Eval: {eval_reward:.2f}")
+        print(f"  ✓ Training predation: {avg_train_predation:.2f} per episode")
+        print(f"  ✓ Eval: {eval_reward:.2f} | Predation: {eval_result['avg_predation_events']:.2f} per eval episode")
 
         return {
             'agent': agent,
             'rewards': rewards,
             'steps': steps,
             'populations': populations,
+            'predation_events': predation_events,
+            'avg_train_predation': avg_train_predation,
             'eval': eval_reward,
+            'eval_predation_events': eval_result['avg_predation_events'],
+            'eval_predation_total': eval_result['total_predation_events'],
             'model_path': model_path,
         }
 
@@ -451,6 +519,7 @@ class AlternatingTrainingProtocol(TrainingProtocol):
             fieldnames = [
                 'cycle', 'phase', 'agent_type', 'episode', 'reward', 'steps', 'eval_reward',
                 'prey_population', 'predator_population', 'avg_prey_energy', 'avg_predator_energy',
+                'predation_events', 'eval_predation_events',
             ]
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
@@ -473,6 +542,8 @@ class AlternatingTrainingProtocol(TrainingProtocol):
                         'predator_population': pop.get('predator_population', 0),
                         'avg_prey_energy': pop.get('avg_prey_energy', 0),
                         'avg_predator_energy': pop.get('avg_predator_energy', 0),
+                        'predation_events': prey_data['predation_events'][ep] if ep < len(prey_data['predation_events']) else 0,
+                        'eval_predation_events': prey_data['eval_predation_events'],
                     })
 
                 pred_data = cycle_data['predator_result']
@@ -490,6 +561,8 @@ class AlternatingTrainingProtocol(TrainingProtocol):
                         'predator_population': pop.get('predator_population', 0),
                         'avg_prey_energy': pop.get('avg_prey_energy', 0),
                         'avg_predator_energy': pop.get('avg_predator_energy', 0),
+                        'predation_events': pred_data['predation_events'][ep] if ep < len(pred_data['predation_events']) else 0,
+                        'eval_predation_events': pred_data['eval_predation_events'],
                     })
 
         print(f"  ✓ Alternating results saved: {csv_path.name}")

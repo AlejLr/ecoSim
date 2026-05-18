@@ -85,14 +85,17 @@ def main():
     # Protocol 2: Alternating Training
     elif command == "2":
         if len(sys.argv) < 4:
-            print("Usage: python -m src.models.run_training_protocol 2 [cycles] [episodes_per_cycle]")
+            print("Usage: python -m src.models.run_training_protocol 2 [cycles] [episodes_per_cycle] [new]")
             sys.exit(1)
         
         num_cycles = int(sys.argv[2])
         num_episodes = int(sys.argv[3])
+        start_from_latest = True
+        if len(sys.argv) >= 5 and sys.argv[4].strip().lower() == "new":
+            start_from_latest = False
         
         protocol = AlternatingTrainingProtocol("", num_episodes, run_number)
-        result = protocol.train(num_cycles=num_cycles)
+        result = protocol.train(num_cycles=num_cycles, start_from_latest=start_from_latest)
         
         print(f"\n{'='*70}")
         print(f"PROTOCOL 2 COMPLETE")
@@ -100,6 +103,21 @@ def main():
         print(f"Completed {num_cycles} cycles")
         print(f"Prey agents trained: {len(result['prey_agents'])}")
         print(f"Predator agents trained: {len(result['predator_agents'])}")
+        if start_from_latest:
+            print("Resume mode: latest saved models were used when available")
+        else:
+            print("Fresh mode: training started from scratch")
+        if result.get('cycles'):
+            prey_train_predation = [cycle_data['prey_result'].get('avg_train_predation', 0.0) for cycle_data in result['cycles']]
+            predator_train_predation = [cycle_data['predator_result'].get('avg_train_predation', 0.0) for cycle_data in result['cycles']]
+            prey_eval_predation = [cycle_data['prey_result'].get('eval_predation_events', 0.0) for cycle_data in result['cycles']]
+            predator_eval_predation = [cycle_data['predator_result'].get('eval_predation_events', 0.0) for cycle_data in result['cycles']]
+
+            def mean(values):
+                return sum(values) / len(values) if values else 0.0
+
+            print(f"Training predation / episode - PREY: {mean(prey_train_predation):.2f} | PREDATOR: {mean(predator_train_predation):.2f}")
+            print(f"Eval predation / episode - PREY: {mean(prey_eval_predation):.2f} | PREDATOR: {mean(predator_eval_predation):.2f}")
         
     # Protocol 3: Co-Learning
     elif command == "3":

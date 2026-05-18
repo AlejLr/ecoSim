@@ -2,6 +2,47 @@ from random import choice
 
 from config.config import *
 
+
+def reward_for_agent(agent_type, *, event="step", energy_gained=0.0, thirst=MAX_THIRST, detected=False, current_prey_count=None):
+    """Explicit reward equation for PREY and PREDATOR agents.
+
+    event can be one of: step, eat, drink, reproduce.
+    """
+    reward = 0.0
+    agent_kind = agent_type.upper()
+
+    if event in {"step", "eat", "drink", "reproduce"}:
+        reward += STEP_PENALTY
+
+    if thirst < THIRST_PENALTY_THRESHOLD:
+        reward += THIRST_CRITICAL_PENALTY
+
+    if agent_kind == "PREY":
+        if event == "eat":
+            reward += energy_gained * ENERGY_REWARD_SCALE
+        elif event == "drink":
+            reward += DRINKING_REWARD
+        elif event == "reproduce":
+            reward += REPRODUCTION_REWARD
+
+        if detected:
+            reward += PREY_DETECTION_PENALTY
+
+    elif agent_kind == "PREDATOR":
+        if event == "eat":
+            reward += (energy_gained * 0.25) * ENERGY_REWARD_SCALE
+            if energy_gained > 0 and current_prey_count is not None:
+                reward += HUNTING_SUCCESS_BONUS * min(1.0, current_prey_count / PREY_PREDATION_SUSTAINABILITY_THRESHOLD)
+        elif event == "drink":
+            reward += DRINKING_REWARD
+        elif event == "reproduce":
+            reward += REPRODUCTION_REWARD
+
+        if detected:
+            reward += PREDATOR_DETECTION_BONUS
+
+    return reward
+
 class Agent():
     """Base agent class"""
     def __init__(self, agent_id, position, agent_type):
@@ -17,6 +58,7 @@ class Agent():
         
         self.thirst = MAX_THIRST
         self.vision_radius = VISION_RADIUS  # Same for all
+        self.speed = 1
         self.episode_reward = 0
         self.q_learning = None  # Optional Q-learning agent (set by environment)
         
@@ -30,8 +72,6 @@ class Agent():
     
     def action(self, action_idx, environment):
         """Execute action and return immediate reward"""
-        from config.config import THIRST_PENALTY_THRESHOLD, THIRST_CRITICAL_PENALTY
-        
         immediate_reward = 0
         
         # Energy and thirst decay each step
@@ -52,23 +92,15 @@ class Agent():
         elif action_idx == 10:
             # Action 10: idle
             pass
-        
-        # Add base penalty per step
-        immediate_reward += STEP_PENALTY
-        
-        # Add thirst penalty shaping: penalize critically low thirst to encourage drinking
-        if self.thirst < THIRST_PENALTY_THRESHOLD:
-            immediate_reward += THIRST_CRITICAL_PENALTY
-        
-        # Small detection bonuses/penalties (configurable)
-        if self.agent_type == "PREDATOR":
-            obs = self.get_observation(environment)
-            if obs[5] > 0:  # prey_detected
-                immediate_reward += PREDATOR_DETECTION_BONUS
-        elif self.agent_type == "PREY":
-            obs = self.get_observation(environment)
-            if obs[5] > 0:  # pred_detected
-                immediate_reward += PREY_DETECTION_PENALTY
+
+        obs = self.get_observation(environment)
+        detected = obs[5] > 0
+        immediate_reward += reward_for_agent(
+            self.agent_type,
+            event="step",
+            thirst=self.thirst,
+            detected=detected,
+        )
         
         return immediate_reward
 
@@ -79,13 +111,19 @@ class Agent():
 
     def move(self, direction, environment):
         """Move the agent in the given direction if within bounds"""
-        new_x = self.position[0] + direction[0]
-        new_y = self.position[1] + direction[1]
-        
+        # Apply speed multiplier so faster agents can move multiple tiles per action
+        new_x = self.position[0] + direction[0] * self.speed
+        new_y = self.position[1] + direction[1] * self.speed
+
+        # Ensure integer positions
+        new_x = int(new_x)
+        new_y = int(new_y)
+
         if 0 <= new_x < environment.width and 0 <= new_y < environment.height:
             environment.update_agent_position(self, self.position, (new_x, new_y))
             self.position = (new_x, new_y)
-            self.energy = max(0, self.energy - MOVEMENT_ENERGY_COST)
+            # Movement energy cost scales with speed (more tiles moved costs more energy)
+            self.energy = max(0, self.energy - MOVEMENT_ENERGY_COST * self.speed)
 
     def eat(self, environment):
         """Eat from tiles/agents within ACTION_RADIUS. Override in subclasses."""
@@ -96,8 +134,6 @@ class Agent():
         
         Returns positive reward when successful (incentivizes drinking behavior).
         """
-        from config.config import DRINKING_REWARD
-        
         for dx in range(-ACTION_RADIUS, ACTION_RADIUS + 1):
             for dy in range(-ACTION_RADIUS, ACTION_RADIUS + 1):
                 tile_x = self.position[0] + dx
@@ -107,7 +143,7 @@ class Agent():
                     gain = tile.drink()
                     if gain > 0:
                         self.thirst = min(MAX_THIRST, self.thirst + gain)
-                        return DRINKING_REWARD  # Reward for successful drinking
+                        return reward_for_agent(self.agent_type, event="drink", thirst=self.thirst)  # Reward for successful drinking
         return 0
 
     def get_nearby_agents(self, environment):
@@ -304,7 +340,7 @@ class Prey(Agent):
                         gain = tile.eat()
                         if gain > 0:
                             self.energy = min(MAX_AGENT_ENERGY, self.energy + gain)
-                            return gain * ENERGY_REWARD_SCALE
+                            return reward_for_agent(self.agent_type, event="eat", energy_gained=gain)
         return 0
 
     def reproduce(self, environment, new_agent_id, current_prey_count=None, carrying_capacity=None, all_agents=None):
@@ -389,6 +425,8 @@ class Predator(Agent):
     def __init__(self, agent_id, position):
         super().__init__(agent_id, position, "PREDATOR")
         self.reproduction_cooldown = 0
+        # Predators are faster than prey: move 2 tiles per move
+        self.speed = 2
     
     def eat(self, environment, target_position=None):
         """Hunt and eat prey within ACTION_RADIUS
@@ -397,6 +435,15 @@ class Predator(Agent):
         Otherwise, eat first prey found within ACTION_RADIUS.
         Prevents double-kills by checking is_alive() and removing prey immediately.
         """
+        # Record that an eat() was invoked (attempt)
+        try:
+            environment.predation_attempts += 1
+        except Exception:
+            pass
+
+        if VERBOSE:
+            print(f"[PREDATION ATTEMPT] Predator {self.agent_id} at {self.position} called eat(); initial target={target_position}")
+
         if target_position is None:
             # Find any prey within ACTION_RADIUS
             for dx in range(-ACTION_RADIUS, ACTION_RADIUS + 1):
@@ -413,11 +460,24 @@ class Predator(Agent):
                             break
         
         if target_position is None:
+            # No prey found within ACTION_RADIUS
+            try:
+                environment.predation_failures += 1
+            except Exception:
+                pass
+            if VERBOSE:
+                print(f"[PREDATION FAILURE] Predator {self.agent_id} found no prey to eat from {self.position}")
             return 0  # No prey found
         
         # Check if target is within ACTION_RADIUS
         if abs(target_position[0] - self.position[0]) > ACTION_RADIUS or \
            abs(target_position[1] - self.position[1]) > ACTION_RADIUS:
+            try:
+                environment.predation_failures += 1
+            except Exception:
+                pass
+            if VERBOSE:
+                print(f"[PREDATION FAILURE] Predator {self.agent_id} target {target_position} out of ACTION_RADIUS from {self.position}")
             return 0
         
         # Find and eat alive prey at target position
@@ -425,34 +485,49 @@ class Predator(Agent):
                     if a.agent_type == "PREY" and a is not self and a.is_alive()]
         
         if not prey_list:
+            try:
+                environment.predation_failures += 1
+            except Exception:
+                pass
+            if VERBOSE:
+                print(f"[PREDATION FAILURE] Predator {self.agent_id} no alive prey found at target {target_position}")
             return 0
-        
+
         prey = prey_list[0]
         energy_gained = prey.energy
+
+        # Count prey before removal for logging
+        pre_count = len([agent for agent in environment.agents if agent.is_alive() and agent.agent_type == "PREY"])
+
         from config.config import DEATH_PENALTY
+        if VERBOSE:
+            print(f"[PREDATION SUCCESS -> EXECUTING] Predator {self.agent_id} will eat Prey {prey.agent_id} at {prey.position} (energy={energy_gained}); prey_count_before={pre_count}")
+
         prey.die(environment, death_penalty=DEATH_PENALTY)  # Remove prey immediately (prevents double-kills)
-        
+
         # Predator gains energy with 25% efficiency (realistic energy transfer)
         predation_energy_transfer = energy_gained * 0.25
         self.energy = min(MAX_AGENT_ENERGY, self.energy + predation_energy_transfer)
 
-        current_prey_count = len([
-            agent for agent in environment.agents
-            if agent.is_alive() and agent.agent_type == "PREY"
-        ])
-        reward_scale = 1.0
-        if PREY_PREDATION_SUSTAINABILITY_THRESHOLD > 0:
-            reward_scale = min(1.0, current_prey_count / PREY_PREDATION_SUSTAINABILITY_THRESHOLD)
-        
+        post_count = len([agent for agent in environment.agents if agent.is_alive() and agent.agent_type == "PREY"])
+        try:
+            environment.predation_successes += 1
+        except Exception:
+            pass
+
+        if VERBOSE:
+            print(f"[PREDATION DONE] Predator {self.agent_id} ate Prey {prey.agent_id}; energy_gained={energy_gained} -> predator_energy={self.energy}; prey_count_after={post_count}")
+
         # Return reward based on ACTUAL energy transfer (not theoretical), scaled with sustainability
-        bonus = (HUNTING_SUCCESS_BONUS if energy_gained > 0 else 0) * reward_scale
-        return predation_energy_transfer * ENERGY_REWARD_SCALE + bonus
+        return reward_for_agent(
+            self.agent_type,
+            event="eat",
+            energy_gained=energy_gained,
+            current_prey_count=post_count,
+        )
 
     def reproduce(self, environment, new_agent_id, current_prey_count=None, current_predator_count=None, all_agents=None):
-        """Predator reproduces when energy sufficient, mate nearby, and predator count bounded by prey.
-        
-        Predator carrying capacity is dynamic: max_predators = current_prey_count * PREDATOR_PREY_RATIO_FOR_REPRODUCTION
-        """
+        """Predator reproduces when energy sufficient and mate nearby (no carrying capacity limit)."""
         import random
         import numpy as np
         from config.config import (
@@ -463,7 +538,6 @@ class Predator(Agent):
             PREDATOR_REPRODUCTION_SEARCH_RADIUS,
             PREDATOR_REPRODUCTION_COOLDOWN,
             PREDATOR_REPRODUCTION_PROB_SCALE,
-            PREDATOR_PREY_RATIO_FOR_REPRODUCTION,
             MAX_AGENT_ENERGY,
         )
 
@@ -472,12 +546,6 @@ class Predator(Agent):
 
         if current_prey_count is not None and current_prey_count <= 0:
             return None
-
-        # Dynamic predator carrying capacity: bounded by available prey
-        if current_prey_count is not None and current_predator_count is not None:
-            max_predators = max(1, int(current_prey_count * PREDATOR_PREY_RATIO_FOR_REPRODUCTION))
-            if current_predator_count >= max_predators:
-                return None
 
         if all_agents is None:
             all_agents = []

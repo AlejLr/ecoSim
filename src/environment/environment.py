@@ -15,6 +15,10 @@ class grid_env():
         self.agent_grid = np.zeros((width, height), dtype=int)
         self.agents = []
         self.agents_by_position = defaultdict(list)
+        # Predation statistics for diagnostics
+        self.predation_attempts = 0
+        self.predation_successes = 0
+        self.predation_failures = 0
         
         self.tile_class = {
             "grass": GrassTile,

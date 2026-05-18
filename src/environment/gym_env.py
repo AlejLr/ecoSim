@@ -261,7 +261,6 @@ class EcoSimEnv(gym.Env):
                         all_agents=self.other_agents + [self.agent],
                     )
                 else:  # PREDATOR
-                    from config.config import PREDATOR_PREY_RATIO_FOR_REPRODUCTION
                     offspring = agent.reproduce(
                         self.env,
                         self.next_agent_id,
@@ -271,6 +270,13 @@ class EcoSimEnv(gym.Env):
                     )
                 
                 if offspring is not None:
+                    from agents.agent import reward_for_agent
+                    # Award reproduction reward to background agent (BUG FIX: was not being accumulated)
+                    agent.episode_reward += reward_for_agent(
+                        agent.agent_type,
+                        event="reproduce",
+                        thirst=agent.thirst,
+                    )
                     offspring_list.append(offspring)
                     self.next_agent_id += 1
                     if offspring.agent_type == "PREY":
@@ -306,8 +312,12 @@ class EcoSimEnv(gym.Env):
                 )
             
             if offspring is not None:
-                from config.config import REPRODUCTION_REWARD
-                self.agent.episode_reward += REPRODUCTION_REWARD
+                from agents.agent import reward_for_agent
+                self.agent.episode_reward += reward_for_agent(
+                    self.agent.agent_type,
+                    event="reproduce",
+                    thirst=self.agent.thirst,
+                )
                 
                 self.other_agents.append(offspring)
                 self.env.agents.append(offspring)
