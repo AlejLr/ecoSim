@@ -73,6 +73,7 @@ class TrainingProtocol:
             'steps': [],
             'eval_rewards': [],
             'populations': [],  # Store population snapshots
+            'outcomes': [],
         }
     
     def _collect_episode_snapshot(self, env: EcoSimEnv):
@@ -134,7 +135,7 @@ class TrainingProtocol:
             return None
         return QLearningAgent.load_model_from_file(str(latest_model_path))
     
-    def train(self) -> Dict:
+    def train(self, resume_prey: str = None, resume_predator: str = None) -> Dict:
         """Train agent according to protocol. Return metrics."""
         raise NotImplementedError("Subclasses must implement train()")
     
@@ -195,7 +196,7 @@ class TrainingProtocol:
         with open(csv_path, 'w', newline='', encoding='utf-8') as f:
             # Include population metrics if available
             if self.metrics['populations']:
-                fieldnames = ['episode', 'reward', 'steps', 'eval_reward', 
+                fieldnames = ['episode', 'reward', 'steps', 'eval_reward', 'outcome',
                              'prey_population', 'predator_population', 
                              'avg_prey_energy', 'avg_predator_energy']
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -212,6 +213,7 @@ class TrainingProtocol:
                         'reward': reward,
                         'steps': steps,
                         'eval_reward': eval_r,
+                        'outcome': self.metrics['outcomes'][ep] if ep < len(self.metrics['outcomes']) else '',
                         'prey_population': pop.get('prey_population', 0),
                         'predator_population': pop.get('predator_population', 0),
                         'avg_prey_energy': pop.get('avg_prey_energy', 0),
@@ -220,13 +222,14 @@ class TrainingProtocol:
             else:
                 # Fallback to basic CSV without population data
                 writer = csv.writer(f)
-                writer.writerow(['episode', 'reward', 'steps', 'eval_reward'])
+                writer.writerow(['episode', 'reward', 'steps', 'eval_reward', 'outcome'])
                 for ep, (reward, steps, eval_r) in enumerate(zip(
                     self.metrics['rewards'],
                     self.metrics['steps'],
                     self.metrics['eval_rewards']
                 )):
-                    writer.writerow([ep + 1, reward, steps, eval_r])
+                    outcome = self.metrics['outcomes'][ep] if ep < len(self.metrics['outcomes']) else ''
+                    writer.writerow([ep + 1, reward, steps, eval_r, outcome])
         
         print(f"  ✓ Results saved: {csv_path.name}")
         if additional_info:
@@ -242,80 +245,261 @@ class FixedOpponentProtocol(TrainingProtocol):
     Most stable, suitable for initial training.
     """
     
-    def train(self) -> Dict:
-        """Train with fixed random opponents."""
-        
+    def train(self, resume_prey: str = None, resume_predator: str = None) -> Dict:
+        """Protocol 1 redefined: 1v1 training (both prey and predator learn).
+
+        Episode ends when either:
+          - Prey survives `ONE_V_ONE_STEPS` (prey wins), or
+          - Predator successfully eats the prey (predator wins).
+
+        Both agents are Q-learning agents that train simultaneously on the same episodes.
+        The protocol otherwise follows the same environment and reward rules
+        as the full MARL ecosystem (resource dynamics, reproduction disabled by
+        default in this small setting).
+        """
+
         print(f"\n{'='*70}")
-        print(f"PROTOCOL 1: FIXED OPPONENTS")
+        print(f"PROTOCOL 1: 1v1 TRAINING (Prey vs Predator) - DUAL AGENT LEARNING")
         print(f"{'='*70}")
-        print(f"Agent Type: {self.agent_type}")
+        print(f"Mode: Both PREY and PREDATOR learn simultaneously")
         print(f"Episodes: {self.num_episodes}")
-        print(f"Opponent Policy: RANDOM (non-learning)")
-        print(f"Environment: STATIONARY ✓")
-        print(f"Convergence: Good (standard RL assumptions hold)")
+        print(f"Environment: 1 prey, 1 predator | Episode ends on predation or {ONE_V_ONE_STEPS} steps")
         print(f"{'='*70}\n")
-        
-        # Create environment with memory=False (random opponents)
-        env = EcoSimEnv(
-            agent_id=0,
-            num_prey=6,
-            num_predators=2,
-            agent_type=self.agent_type,
-            map_path=None,
-            memory=False  # Fixed random policy
-        )
-        
-        agent = QLearningAgent(agent_id=0, num_actions=11, num_states=5400)
-        
-        # Training loop
+
+        # Initialize two learning agents (allow resuming from checkpoints)
+        if resume_prey:
+            try:
+                prey_agent = QLearningAgent.load_model_from_file(str(resume_prey))
+                print(f"✓ Loaded PREY model from {resume_prey}")
+            except Exception:
+                print(f"! Failed to load PREY model from {resume_prey}; starting from scratch")
+                prey_agent = QLearningAgent(agent_id=0, num_actions=11, num_states=5400)
+        else:
+            prey_agent = QLearningAgent(agent_id=0, num_actions=11, num_states=5400)
+
+        if resume_predator:
+            try:
+                predator_agent = QLearningAgent.load_model_from_file(str(resume_predator))
+                print(f"✓ Loaded PREDATOR model from {resume_predator}")
+            except Exception:
+                print(f"! Failed to load PREDATOR model from {resume_predator}; starting from scratch")
+                predator_agent = QLearningAgent(agent_id=1, num_actions=11, num_states=5400)
+        else:
+            predator_agent = QLearningAgent(agent_id=1, num_actions=11, num_states=5400)
+
+        # Training loop (1v1 episodes)
+        prey_rewards_per_ep = []
+        predator_rewards_per_ep = []
+        outcomes_per_ep = []
+        eval_rewards_per_ep = []
+
         for episode in range(self.num_episodes):
-            obs = env.reset(seed=self._episode_seed(0, 0, episode))
-            state = agent.discretize_state(obs)
-            episode_reward = 0
+            # Create fresh 1v1 environment for this episode
+            env = EcoSimEnv(
+                agent_id=0,
+                num_prey=1,
+                num_predators=1,
+                agent_type="PREY",
+                map_path=None,
+                memory=False,
+            )
+            np.random.seed(self._episode_seed(0, 0, episode))
+            import random
+            random.seed(self._episode_seed(0, 0, episode))
+            obs_prey = env.reset(seed=self._episode_seed(0, 0, episode))
+
+            # Extract prey and predator agents from environment
+            prey_agent_in_env = env.agent  # The main agent (always PREY in setup)
+            predator_agent_in_env = env.other_agents[1] if len(env.other_agents) > 1 else None
+
+            # Link the Q-learning agents to the physical agents
+            prey_agent_in_env.q_learning = prey_agent
+            if predator_agent_in_env:
+                predator_agent_in_env.q_learning = predator_agent
+
+            # Initialize states
+            prey_state = prey_agent.discretize_state(obs_prey)
+            predator_obs = predator_agent_in_env.get_observation(env.env) if predator_agent_in_env else obs_prey
+            predator_state = predator_agent.discretize_state(predator_obs)
+
+            prey_episode_reward = 0
+            predator_episode_reward = 0
             episode_step_count = 0
             done = False
-            
-            while not done:
-                action = agent.select_action(state, training=True)
-                next_obs, reward, done, info = env.step(action)
-                next_state = agent.discretize_state(next_obs)
-                
-                agent.update(state, action, reward, next_state, done)
-                
-                state = next_state
-                episode_reward += reward
+            outcome = ""
+            predation_occurred = False
+
+            # Dual-agent 1v1 episode loop
+            while not done and episode_step_count < ONE_V_ONE_STEPS:
+                # Prey action
+                prey_action = prey_agent.select_action(prey_state, training=True)
+                prey_reward_step = prey_agent_in_env.action(prey_action, env.env)
+
+                # Predator action
+                if predator_agent_in_env and predator_agent_in_env.is_alive():
+                    predator_action = predator_agent.select_action(predator_state, training=True)
+                    predator_reward_step = predator_agent_in_env.action(predator_action, env.env)
+                else:
+                    predator_reward_step = 0
+
+                # Advance environment
+                env.env.update_resources()
+
+                # Check for deaths and clean up
+                dead_agents = [a for a in env.env.agents if not a.is_alive()]
+                for dead_agent in dead_agents:
+                    dead_agent.die(env.env)
+
+                # Check if predation occurred (predator ate prey)
+                if not prey_agent_in_env.is_alive():
+                    predation_occurred = True
+                    outcome = "PREDATOR_WIN"
+                    done = True
+                    # Predator gets full reward, prey gets death penalty
+                    predator_reward_step += HUNTING_SUCCESS_BONUS * 0.5
+                    prey_reward_step = DEATH_PENALTY
+
+                # Get next observations
+                next_prey_obs = prey_agent_in_env.get_observation(env.env)
+                next_prey_state = prey_agent.discretize_state(next_prey_obs)
+
+                if predator_agent_in_env and predator_agent_in_env.is_alive():
+                    next_predator_obs = predator_agent_in_env.get_observation(env.env)
+                    next_predator_state = predator_agent.discretize_state(next_predator_obs)
+                else:
+                    next_predator_state = predator_state
+
+                # Update Q-tables for both agents
+                prey_agent.update(prey_state, prey_action, prey_reward_step, next_prey_state, done)
+                if predator_agent_in_env and predator_agent_in_env.is_alive():
+                    predator_agent.update(predator_state, predator_action, predator_reward_step, next_predator_state, done)
+
+                # Update states and rewards
+                prey_state = next_prey_state
+                predator_state = next_predator_state
+                prey_episode_reward += prey_reward_step
+                predator_episode_reward += predator_reward_step
                 episode_step_count += 1
-            
-            agent.decay_epsilon()
-            
+
+            # If loop ends due to step limit, prey survived
+            if not predation_occurred and episode_step_count >= ONE_V_ONE_STEPS:
+                outcome = "PREY_WIN"
+            elif not outcome:
+                outcome = "PREY_WIN" if episode_step_count >= ONE_V_ONE_STEPS else "PREDATOR_WIN"
+
+            # Decay epsilon for both agents
+            prey_agent.decay_epsilon()
+            predator_agent.decay_epsilon()
+
+            # Save metrics (use predator's perspective by default, but track both)
+            prey_rewards_per_ep.append(prey_episode_reward)
+            predator_rewards_per_ep.append(predator_episode_reward)
+            outcomes_per_ep.append(outcome)
+
             self.metrics['episodes'].append(episode + 1)
-            self.metrics['rewards'].append(episode_reward)
+            self.metrics['rewards'].append(predator_episode_reward)
             self.metrics['steps'].append(episode_step_count)
+            self.metrics['eval_rewards'].append(0.0)  # Placeholder; final eval computed at end
             self.metrics['populations'].append(self._collect_episode_snapshot(env))
-            
-            self._log_progress(episode, episode_reward, agent.epsilon)
-        
-        # Evaluate
-        print(f"\nEvaluating (greedy policy)...")
-        eval_reward = self._evaluate_greedy(env, agent, seed_base=self._episode_seed(0, 9, 0))
-        self.metrics['eval_rewards'] = [eval_reward] * len(self.metrics['rewards'])
-        
-        print(f"✓ Final evaluation reward: {eval_reward:.2f}")
-        
-        # Save model
-        model_path = self.results_dir.parent / f"trained_{self.agent_type.lower()}_{self.run_number}_protocol1.pkl"
-        agent.save_model(str(model_path))
-        
-        self._save_results("fixed_opponents", f"Model: {model_path.name}")
-        
+            self.metrics['outcomes'].append(outcome)
+
+            # Log progress for both agents
+            if (episode + 1) % max(10, self.num_episodes // 10) == 0:
+                print(f"  Episode {episode+1:4d}/{self.num_episodes} | "
+                      f"Prey: {prey_episode_reward:8.2f} | Predator: {predator_episode_reward:8.2f} | "
+                      f"Outcome: {outcome} | Eps: {prey_agent.epsilon:.3f}")
+
+        # Evaluate both agents greedily
+        original_prey_epsilon = prey_agent.epsilon
+        original_predator_epsilon = predator_agent.epsilon
+        prey_agent.epsilon = 0.0
+        predator_agent.epsilon = 0.0
+
+        eval_rewards = []
+        num_evals = min(10, max(1, self.num_episodes // 10))
+
+        for ei in range(num_evals):
+            env = EcoSimEnv(
+                agent_id=0,
+                num_prey=1,
+                num_predators=1,
+                agent_type="PREY",
+                map_path=None,
+                memory=False,
+            )
+            obs = env.reset(seed=self._episode_seed(0, 9, ei))
+            prey_agent_in_env = env.agent
+            predator_agent_in_env = env.other_agents[1] if len(env.other_agents) > 1 else None
+
+            prey_state = prey_agent.discretize_state(obs)
+            predator_obs = predator_agent_in_env.get_observation(env.env) if predator_agent_in_env else obs
+            predator_state = predator_agent.discretize_state(predator_obs)
+
+            eval_pred_reward = 0
+            steps = 0
+            done = False
+
+            while steps < ONE_V_ONE_STEPS and not done:
+                prey_action = prey_agent.select_action(prey_state, training=False)
+                prey_reward_step = prey_agent_in_env.action(prey_action, env.env)
+
+                if predator_agent_in_env and predator_agent_in_env.is_alive():
+                    predator_action = predator_agent.select_action(predator_state, training=False)
+                    predator_reward_step = predator_agent_in_env.action(predator_action, env.env)
+                else:
+                    predator_reward_step = 0
+
+                env.env.update_resources()
+
+                dead_agents = [a for a in env.env.agents if not a.is_alive()]
+                for dead_agent in dead_agents:
+                    dead_agent.die(env.env)
+
+                if not prey_agent_in_env.is_alive():
+                    done = True
+                    predator_reward_step += HUNTING_SUCCESS_BONUS * 0.5
+
+                prey_state = prey_agent.discretize_state(prey_agent_in_env.get_observation(env.env))
+                if predator_agent_in_env and predator_agent_in_env.is_alive():
+                    predator_state = predator_agent.discretize_state(predator_agent_in_env.get_observation(env.env))
+
+                eval_pred_reward += predator_reward_step
+                steps += 1
+
+            eval_rewards.append(eval_pred_reward)
+
+        prey_agent.epsilon = original_prey_epsilon
+        predator_agent.epsilon = original_predator_epsilon
+
+        avg_eval_reward = float(np.mean(eval_rewards)) if eval_rewards else 0.0
+        predator_wins = sum(1 for o in outcomes_per_ep if o == "PREDATOR_WIN")
+        prey_wins = sum(1 for o in outcomes_per_ep if o == "PREY_WIN")
+
+        print(f"\n1v1 Training Summary:")
+        print(f"  Predator Wins: {predator_wins}/{self.num_episodes}")
+        print(f"  Prey Wins: {prey_wins}/{self.num_episodes}")
+        print(f"  Eval Predator Reward (greedy): {avg_eval_reward:.2f}")
+
+        # Save both models
+        prey_model_path = self.results_dir.parent / f"trained_prey_{self.run_number}_protocol1_1v1.pkl"
+        predator_model_path = self.results_dir.parent / f"trained_predator_{self.run_number}_protocol1_1v1.pkl"
+        prey_agent.save_model(str(prey_model_path))
+        predator_agent.save_model(str(predator_model_path))
+
+        self._save_results("1v1", f"Model: prey+predator models saved")
+
         return {
-            'protocol': 'fixed_opponents',
-            'agent_type': self.agent_type,
+            'protocol': '1v1_dual_agent',
+            'agents': ['PREY', 'PREDATOR'],
             'episodes': self.num_episodes,
-            'final_eval': eval_reward,
-            'training_rewards': self.metrics['rewards'],
-            'agent': agent,
-            'model_path': model_path,
+            'final_eval': avg_eval_reward,
+            'predator_rewards': predator_rewards_per_ep,
+            'prey_rewards': prey_rewards_per_ep,
+            'outcomes': outcomes_per_ep,
+            'predator_wins': predator_wins,
+            'prey_wins': prey_wins,
+            'prey_model_path': prey_model_path,
+            'predator_model_path': predator_model_path,
         }
 
 

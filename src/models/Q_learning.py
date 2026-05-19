@@ -74,13 +74,32 @@ class QLearningAgent:
         training: if False, use greedy only (no exploration)
         returns: action index (0-10)
         """
+        def valid_actions_for_state(state_tuple):
+            """Mask out actions that are clearly invalid in the current state.
+
+            For now we only prevent `eat` when the target is not detected. This
+            keeps exploration from wasting steps on blind hunting attempts while
+            leaving the rest of the action space unchanged.
+            """
+            valid_actions = list(range(self.num_actions))
+            target_detected = int(state_tuple[5]) if len(state_tuple) > 5 else 0
+            if target_detected <= 0 and 8 in valid_actions:
+                valid_actions.remove(8)
+            return valid_actions
+
+        valid_actions = valid_actions_for_state(state)
+
         if training and random.random() < self.epsilon:
             # Explore: random action
-            return random.randint(0, self.num_actions - 1)
+            return random.choice(valid_actions)
         else:
             # Exploit: best Q-value
             q_values = self.q_table[state]
-            return np.argmax(q_values + np.random.random(self.num_actions) * 1e-6)
+            masked_q_values = np.array(q_values, copy=True)
+            invalid_actions = set(range(self.num_actions)) - set(valid_actions)
+            for action in invalid_actions:
+                masked_q_values[action] = -np.inf
+            return int(np.argmax(masked_q_values + np.random.random(self.num_actions) * 1e-6))
     
     def update(self, state, action, reward, next_state, done):
         """Q-learning update rule

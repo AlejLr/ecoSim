@@ -7,7 +7,7 @@ MAX_SIMULATION_STEPS = 1000
 MAX_FPS = 5
 
 RENDER = True
-VERBOSE = True
+VERBOSE = False
 SAVE_STATS = True
 
 # RANDOM SEED FOR REPRODUCIBILITY
@@ -46,6 +46,7 @@ EPSILON_DECAY = 0.995           # Decay exploration each episode
 EPSILON_MIN = 0.01              # Don't go below 1% random
 NUM_EPISODES = 1000             # Total training episodes
 STEPS_PER_EPISODE = 500         # Max steps per episode
+ONE_V_ONE_STEPS = 350           # Step limit for 1v1 protocol (prey survival threshold)
 
 
 # REWARDS

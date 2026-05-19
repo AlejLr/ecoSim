@@ -1,4 +1,4 @@
-# Environment Dynamics Documentation - Run #17
+# Environment Dynamics Documentation - Run #1
 
 ## 1. STEP ORDERING (Per Timestep)
 
@@ -111,20 +111,20 @@ Each timestep follows this exact sequence:
 ### PREDATOR Reproduction
 
 **Dynamic Capacity:**
-- Maximum predators allowed = prey_count × 0.1
+- Maximum predators allowed = prey_count × 0.5
 - Prevents predator overpopulation
 - If current_predators >= capacity, reproduction blocked
 
 **Eligibility Criteria:**
-- Energy >= 80
+- Energy >= 70
 - reproduction_cooldown == 0
 - Below dynamic capacity
 - Partner found: another predator with same criteria
 
 **Probability:**
 - P(reproduce) = (energy_surplus / max_surplus) × 0.7
-  - energy_surplus = energy - 80
-  - max_surplus = 100 - 80
+  - energy_surplus = energy - 70
+  - max_surplus = 100 - 70
   - Example: Predator with 90 energy → (90-80)/(100-80) × 0.7 ≈ 0.35 = 35% chance
   
 **Energy Cost:**

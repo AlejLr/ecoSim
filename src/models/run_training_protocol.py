@@ -72,15 +72,35 @@ def main():
         
         agent_type = sys.argv[2].upper()
         num_episodes = int(sys.argv[3])
-        
+
+        # Optional resume argument: --resume <prey_model_path> <predator_model_path>
+        resume_prey = None
+        resume_predator = None
+        if '--resume' in sys.argv:
+            idx = sys.argv.index('--resume')
+            # Expect two file paths after --resume
+            if len(sys.argv) > idx + 2:
+                resume_prey = sys.argv[idx + 1]
+                resume_predator = sys.argv[idx + 2]
+            else:
+                print("Usage: --resume <prey_model_path> <predator_model_path>")
+                sys.exit(1)
+
         protocol = FixedOpponentProtocol(agent_type, num_episodes, run_number)
-        result = protocol.train()
+        result = protocol.train(resume_prey=resume_prey, resume_predator=resume_predator)
         
         print(f"\n{'='*70}")
         print(f"PROTOCOL 1 COMPLETE")
         print(f"{'='*70}")
         print(f"Final Evaluation: {result['final_eval']:.2f}")
-        print(f"Model saved: {result['model_path'].name}")
+        print(f"Predator Wins: {result.get('predator_wins', 0)}/{result['episodes']}")
+        print(f"Prey Wins: {result.get('prey_wins', 0)}/{result['episodes']}")
+        if 'prey_model_path' in result:
+            print(f"Prey Model: {result['prey_model_path'].name}")
+        if 'predator_model_path' in result:
+            print(f"Predator Model: {result['predator_model_path'].name}")
+        elif 'model_path' in result:
+            print(f"Model saved: {result['model_path'].name}")
         
     # Protocol 2: Alternating Training
     elif command == "2":
