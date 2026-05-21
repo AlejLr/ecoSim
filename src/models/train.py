@@ -74,7 +74,7 @@ def train_agent(num_episodes=100, agent_type="PREY", num_prey=4, num_predators=2
     )
     
     # Create Q-learning agent
-    q_agent = QLearningAgent(agent_id=0, num_actions=11, num_states=5400)
+    q_agent = QLearningAgent(agent_id=0, num_actions=10, num_states=2160)
     
     episode_rewards = []
     episode_steps = []
@@ -254,10 +254,12 @@ def plot_training(episode_rewards, episode_steps, title="Q-Learning Training Pro
     # Plot rewards
     ax1.plot(episode_rewards, alpha=0.6, linewidth=0.8, label='Episode Reward')
     
-    # Add moving average
-    window = 10
-    moving_avg = np.convolve(episode_rewards, np.ones(window)/window, mode='valid')
-    ax1.plot(range(window-1, len(episode_rewards)), moving_avg, 'r-', linewidth=2, label=f'MA-{window}')
+    # Add moving average (if enough episodes)
+    window = min(10, len(episode_rewards))  # Use smaller window for short runs
+    if window > 1:
+        moving_avg = np.convolve(episode_rewards, np.ones(window)/window, mode='valid')
+        if len(moving_avg) > 0:
+            ax1.plot(range(window-1, len(episode_rewards)), moving_avg, 'r-', linewidth=2, label=f'MA-{window}')
     
     ax1.set_xlabel('Episode')
     ax1.set_ylabel('Reward')
@@ -281,8 +283,36 @@ def plot_training(episode_rewards, episode_steps, title="Q-Learning Training Pro
 
 def main():
     """Main training script"""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Train Q-Learning agents on EcoSim")
+    parser.add_argument("--agent-type", default="PREY", choices=["PREY", "PREDATOR"], 
+                        help="Type of agent to train")
+    parser.add_argument("--episodes", type=int, default=100, 
+                        help="Number of training episodes")
+    parser.add_argument("--eval-episodes", type=int, default=10,
+                        help="Number of evaluation episodes")
+    parser.add_argument("--seed", type=int, default=None,
+                        help="Random seed for reproducibility")
+    parser.add_argument("--num-prey", type=int, default=None,
+                        help="Number of prey agents in environment (default: 2 for PREY, 6 for PREDATOR)")
+    parser.add_argument("--num-predators", type=int, default=None,
+                        help="Number of predator agents in environment (default: 1 for PREY, 0 for PREDATOR)")
+    
+    args = parser.parse_args()
+    
+    # Set better defaults based on agent type
+    agent_type = args.agent_type.upper()
+    if args.num_prey is None:
+        args.num_prey = 1 if agent_type == "PREY" else 6  # Minimal competition for PREY
+    if args.num_predators is None:
+        args.num_predators = 0 if agent_type == "PREY" else 0  # No predators for initial learning
+    
     # Set global seed for reproducibility
-    set_global_seed()
+    if args.seed is not None:
+        set_global_seed(args.seed)
+    else:
+        set_global_seed()
     
     # Get run number for this execution
     run_number = get_next_run_number()
@@ -297,39 +327,38 @@ def main():
     results_dir = Path(__file__).parent / "results"
     results_dir.mkdir(exist_ok=True)    
     
-    # Train prey agent
+    # Train specified agent
     print("\n" + "="*60)
-    print("TRAINING PREY AGENT")
+    print(f"TRAINING {agent_type} AGENT")
+    print(f"Environment: {args.num_prey} prey, {args.num_predators} predators")
     print("="*60)
     
-    agent_type = "PREY"
-    prey_agent, prey_rewards, prey_steps = train_agent(
-        num_episodes=100,
+    agent, episode_rewards, episode_steps = train_agent(
+        num_episodes=args.episodes,
         agent_type=agent_type,
-        num_prey=6,
-        num_predators=2,
+        num_prey=args.num_prey,
+        num_predators=args.num_predators,
         run_number=run_number
     )
     
-    # Evaluate prey agent
-    prey_eval_rewards, prey_eval_steps = evaluate_agent(
-        prey_agent,
-        num_episodes=10,
+    # Evaluate agent
+    eval_rewards, eval_steps = evaluate_agent(
+        agent,
+        num_episodes=args.eval_episodes,
         agent_type=agent_type,
-        num_prey=6,
-        num_predators=2
+        num_prey=args.num_prey,
+        num_predators=args.num_predators
     )
     
-    # Save trained agent using save_model method (properly handles pickling)
-    # Save to src/models/ directory with run number
-    model_dir = Path(__file__).parent.parent / "models"  # Go up to src, then into models
+    # Save trained agent
+    model_dir = Path(__file__).parent.parent / "models"
     model_dir.mkdir(exist_ok=True)
     model_path = model_dir / f"trained_{agent_type.lower()}_{run_number}.pkl"
-    prey_agent.save_model(str(model_path))
+    agent.save_model(str(model_path))
     print(f"✓ Model saved: {model_path}")
     
     # Plot results
-    plot_training(prey_rewards, prey_steps, title=f"Prey Agent Training Progress (Run #{run_number})")
+    plot_training(episode_rewards, episode_steps, title=f"{agent_type} Agent Training Progress (Run #{run_number})")
     
     print("\n" + "="*60)
     print(f"Training run #{run_number} completed successfully!")

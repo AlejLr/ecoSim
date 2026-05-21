@@ -12,10 +12,6 @@ class Tile():
     def eat(self):
         """Returns energy if this tile can be eaten, 0 otherwise"""
         return 0
-    
-    def drink(self):
-        """Returns hydration if this tile provides water, 0 otherwise"""
-        return 0
 
     def update(self):
         """Advance tile state by one simulation step."""
@@ -45,17 +41,6 @@ class GrassTile(Tile):
             if self.regrowth_timer <= 0:
                 self.has_energy = True
                 self.regrowth_timer = 0
-
-
-class WaterTile(Tile):
-    """Water tile provides constant hydration when drunk"""
-    def __init__(self, x, y):
-        super().__init__(x, y, "water")
-        self.has_energy = False
-        
-    def drink(self):
-        """Each water tile provides constant hydration"""
-        return WATER_HYDRATION
 
 
 class EmptyTile(Tile):

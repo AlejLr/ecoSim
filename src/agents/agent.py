@@ -3,25 +3,20 @@ from random import choice
 from config.config import *
 
 
-def reward_for_agent(agent_type, *, event="step", energy_gained=0.0, thirst=MAX_THIRST, detected=False, current_prey_count=None):
+def reward_for_agent(agent_type, *, event="step", energy_gained=0.0, detected=False, current_prey_count=None):
     """Explicit reward equation for PREY and PREDATOR agents.
 
-    event can be one of: step, eat, drink, reproduce.
+    event can be one of: step, eat, reproduce.
     """
     reward = 0.0
     agent_kind = agent_type.upper()
 
-    if event in {"step", "eat", "drink", "reproduce"}:
+    if event in {"step", "eat", "reproduce"}:
         reward += STEP_PENALTY
-
-    if thirst < THIRST_PENALTY_THRESHOLD:
-        reward += THIRST_CRITICAL_PENALTY
 
     if agent_kind == "PREY":
         if event == "eat":
             reward += energy_gained * ENERGY_REWARD_SCALE
-        elif event == "drink":
-            reward += DRINKING_REWARD
         elif event == "reproduce":
             reward += REPRODUCTION_REWARD
 
@@ -33,8 +28,6 @@ def reward_for_agent(agent_type, *, event="step", energy_gained=0.0, thirst=MAX_
             reward += (energy_gained * 0.25) * ENERGY_REWARD_SCALE
             if energy_gained > 0 and current_prey_count is not None:
                 reward += HUNTING_SUCCESS_BONUS * min(1.0, current_prey_count / PREY_PREDATION_SUSTAINABILITY_THRESHOLD)
-        elif event == "drink":
-            reward += DRINKING_REWARD
         elif event == "reproduce":
             reward += REPRODUCTION_REWARD
 
@@ -56,7 +49,7 @@ class Agent():
         else:
             self.energy = START_ENERGY_PREDATOR
         
-        self.thirst = MAX_THIRST
+
         self.vision_radius = VISION_RADIUS  # Same for all
         self.speed = 1
         self.episode_reward = 0
@@ -87,27 +80,22 @@ class Agent():
             # Action 8: eat
             immediate_reward = self.eat(environment)
         elif action_idx == 9:
-            # Action 9: drink
-            immediate_reward = self.drink(environment)
-        elif action_idx == 10:
-            # Action 10: idle
+            # Action 9: idle
             pass
 
         obs = self.get_observation(environment)
-        detected = obs[5] > 0
+        detected = obs[4] > 0
         immediate_reward += reward_for_agent(
             self.agent_type,
             event="step",
-            thirst=self.thirst,
             detected=detected,
         )
         
         return immediate_reward
 
     def decay_resources(self):
-        """Decay energy and thirst each step"""
+        """Decay energy each step"""
         self.energy -= ENERGY_DECAY_PER_STEP
-        self.thirst -= THIRST_DECAY_PER_STEP
 
     def move(self, direction, environment):
         """Move the agent in the given direction if within bounds"""
@@ -129,41 +117,9 @@ class Agent():
         """Eat from tiles/agents within ACTION_RADIUS. Override in subclasses."""
         return 0
 
-    def drink(self, environment):
-        """Drink from any water tile within ACTION_RADIUS
-        
-        Returns positive reward when successful (incentivizes drinking behavior).
-        """
-        for dx in range(-ACTION_RADIUS, ACTION_RADIUS + 1):
-            for dy in range(-ACTION_RADIUS, ACTION_RADIUS + 1):
-                tile_x = self.position[0] + dx
-                tile_y = self.position[1] + dy
-                if 0 <= tile_x < environment.width and 0 <= tile_y < environment.height:
-                    tile = environment.tiles[tile_x][tile_y]
-                    gain = tile.drink()
-                    if gain > 0:
-                        self.thirst = min(MAX_THIRST, self.thirst + gain)
-                        return reward_for_agent(self.agent_type, event="drink", thirst=self.thirst)  # Reward for successful drinking
-        return 0
-
     def get_nearby_agents(self, environment):
         """Get all agents nearby within vision radius"""
         return environment.get_agents_nearby(self.position, self.vision_radius)
-    
-    def _water_nearby(self, environment):
-        """Check if water is accessible within ACTION_RADIUS
-        
-        Returns 0 or 1 for observation inclusion.
-        """
-        for dx in range(-ACTION_RADIUS, ACTION_RADIUS + 1):
-            for dy in range(-ACTION_RADIUS, ACTION_RADIUS + 1):
-                tile_x = self.position[0] + dx
-                tile_y = self.position[1] + dy
-                if 0 <= tile_x < environment.width and 0 <= tile_y < environment.height:
-                    tile = environment.tiles[tile_x][tile_y]
-                    if tile.tile_type == "water":
-                        return 1
-        return 0
     
     def _can_reproduce(self, environment):
         """Check if reproduction is currently possible (no cooldown, energy sufficient, mate nearby)
@@ -194,51 +150,54 @@ class Agent():
     def get_observation(self, environment):
         """Build observation state for Q-learning: normalized [0,1] values
         
-        For PREY (8 dims): [energy, thirst, pred_distance, pred_dir_x, pred_dir_y, pred_detected, can_reproduce, water_nearby]
-                          Focus on survival - track nearest predator
-                          (Food is abundant everywhere, not critical)
+        For PREY (7 dims): [energy, food_distance, food_dir_x, food_dir_y, food_detected, can_reproduce, pad]
+                          Track food for eating, food is the priority for energy gain
         
-        For PREDATOR (8 dims): [energy, thirst, prey_distance, prey_dir_x, prey_dir_y, prey_detected, can_reproduce, water_nearby]
+        For PREDATOR (7 dims): [energy, prey_distance, prey_dir_x, prey_dir_y, prey_detected, can_reproduce, pad]
                               Track and hunt prey
         
-        Returns numpy array with 8 floats.
+        Returns numpy array with 7 floats.
         """
         import numpy as np
         
         # Agent's own state (normalized)
         energy_norm = self.energy / MAX_AGENT_ENERGY
-        thirst_norm = self.thirst / MAX_THIRST
         
         if self.agent_type == "PREY":
-            # PREY observation: focus on avoiding nearest predator
-            # Food is abundant (70% grass), so survival takes priority
-            pred_distance_norm = 1.0
-            pred_dir_x = 0.5
-            pred_dir_y = 0.5
-            pred_detected = 0
+            # PREY observation: find nearest FOOD (grass tile)
+            food_distance_norm = 1.0
+            food_dir_x = 0.5
+            food_dir_y = 0.5
+            food_detected = 0
             
-            # Find nearest predator
-            nearby_agents = self.get_nearby_agents(environment)
-            predators = [a for a in nearby_agents if a.agent_type == "PREDATOR"]
+            # Search for nearest grass within vision radius
+            closest_grass = None
+            closest_dist = float('inf')
             
-            if predators:
-                # Find closest predator
-                closest_pred = min(predators, key=lambda a:
-                    abs(a.position[0] - self.position[0]) + abs(a.position[1] - self.position[1]))
-                
-                dx = closest_pred.position[0] - self.position[0]
-                dy = closest_pred.position[1] - self.position[1]
-                distance = (abs(dx) + abs(dy)) / (2 * self.vision_radius)
-                
-                pred_distance_norm = min(1.0, distance)
-                pred_dir_x = np.clip((dx / self.vision_radius + 1) / 2, 0, 1)
-                pred_dir_y = np.clip((dy / self.vision_radius + 1) / 2, 0, 1)
-                pred_detected = 1 if distance < 0.5 else 0
+            for dx in range(-VISION_RADIUS, VISION_RADIUS + 1):
+                for dy in range(-VISION_RADIUS, VISION_RADIUS + 1):
+                    check_x = self.position[0] + dx
+                    check_y = self.position[1] + dy
+                    if 0 <= check_x < environment.width and 0 <= check_y < environment.height:
+                        tile = environment.tiles[check_x][check_y]
+                        if tile.tile_type == "grass" and tile.has_energy:
+                            dist = abs(dx) + abs(dy)
+                            if dist < closest_dist:
+                                closest_dist = dist
+                                closest_grass = (dx, dy)
+            
+            if closest_grass is not None:
+                dx, dy = closest_grass
+                distance = (abs(dx) + abs(dy)) / (2 * VISION_RADIUS)
+                food_distance_norm = min(1.0, distance)
+                food_dir_x = np.clip((dx / VISION_RADIUS + 1) / 2, 0, 1)
+                food_dir_y = np.clip((dy / VISION_RADIUS + 1) / 2, 0, 1)
+                food_detected = 1 if closest_dist <= ACTION_RADIUS else 0
             
             can_reproduce = self._can_reproduce(environment)
-            water_nearby = self._water_nearby(environment)
-            return np.array([energy_norm, thirst_norm, pred_distance_norm, 
-                            pred_dir_x, pred_dir_y, pred_detected, can_reproduce, water_nearby], dtype=np.float32)
+            pad = 0  # Placeholder for consistent 7-dim state space
+            return np.array([energy_norm, food_distance_norm, 
+                            food_dir_x, food_dir_y, food_detected, can_reproduce, pad], dtype=np.float32)
             
         else:  # PREDATOR
             # PREDATOR observation: find nearest prey
@@ -265,13 +224,13 @@ class Agent():
                 target_detected = 1 if distance < 0.5 else 0
             
             can_reproduce = self._can_reproduce(environment)
-            water_nearby = self._water_nearby(environment)
-            return np.array([energy_norm, thirst_norm, target_distance_norm, 
-                            direction_x_norm, direction_y_norm, target_detected, can_reproduce, water_nearby], dtype=np.float32)
+            pad = 0  # Placeholder for consistent 7-dim state space
+            return np.array([energy_norm, target_distance_norm, 
+                            direction_x_norm, direction_y_norm, target_detected, can_reproduce, pad], dtype=np.float32)
         
     def is_alive(self):
-        """Agent dies when energy or thirst reaches 0"""
-        return self.energy > 0 and self.thirst > 0
+        """Agent dies when energy reaches 0"""
+        return self.energy > 0
     
     def die(self, environment, death_penalty=None):
         """Handle agent death and cleanup
@@ -291,9 +250,9 @@ class Agent():
             death_penalty = DEATH_PENALTY
         
         if self.q_learning is not None:
-            # Create a terminal state (all zeros) matching 8-dim observation space
-            # Terminal state must be 8-element tuple, not 5400-element (num_states is total state space)
-            terminal_state = (0, 0, 0, 0, 0, 0, 0, 0)
+            # Create a terminal state (all zeros) matching 7-dim observation space
+            # Terminal state must be 7-element tuple (energy, target_dist, dir_x, dir_y, detected, can_reproduce, pad)
+            terminal_state = (0, 0, 0, 0, 0, 0, 0)
             self.q_learning.apply_death_penalty(terminal_state, death_penalty)
         
         if self in environment.agents:
@@ -515,6 +474,16 @@ class Predator(Agent):
         except Exception:
             pass
 
+        # Record predation telemetry by discrete state (if QLearning discretizer available)
+        try:
+            from models.Q_learning import QLearningAgent
+            obs = self.get_observation(environment)
+            state = QLearningAgent().discretize_state(obs)
+            environment.predation_by_state[state] += 1
+        except Exception:
+            # Best-effort only; don't fail the action if telemetry fails
+            pass
+
         if VERBOSE:
             print(f"[PREDATION DONE] Predator {self.agent_id} ate Prey {prey.agent_id}; energy_gained={energy_gained} -> predator_energy={self.energy}; prey_count_after={post_count}")
 
@@ -527,7 +496,7 @@ class Predator(Agent):
         )
 
     def reproduce(self, environment, new_agent_id, current_prey_count=None, current_predator_count=None, all_agents=None):
-        """Predator reproduces when energy sufficient and mate nearby (no carrying capacity limit)."""
+        """Predator reproduces when energy sufficient and mate nearby (enforces population ratio)."""
         import random
         import numpy as np
         from config.config import (
@@ -538,6 +507,7 @@ class Predator(Agent):
             PREDATOR_REPRODUCTION_SEARCH_RADIUS,
             PREDATOR_REPRODUCTION_COOLDOWN,
             PREDATOR_REPRODUCTION_PROB_SCALE,
+            PREDATOR_PREY_RATIO_FOR_REPRODUCTION,
             MAX_AGENT_ENERGY,
         )
 
@@ -546,6 +516,12 @@ class Predator(Agent):
 
         if current_prey_count is not None and current_prey_count <= 0:
             return None
+
+        # Enforce predator population ratio: max_predators = prey_count * ratio
+        if current_prey_count is not None and current_predator_count is not None:
+            max_predators_allowed = current_prey_count * PREDATOR_PREY_RATIO_FOR_REPRODUCTION
+            if current_predator_count >= max_predators_allowed:
+                return None  # Population cap reached
 
         if all_agents is None:
             all_agents = []

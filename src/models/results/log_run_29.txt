@@ -1,4 +1,4 @@
-# Environment Dynamics Documentation - Run #4
+# Environment Dynamics Documentation - Run #29
 
 ## 1. STEP ORDERING (Per Timestep)
 
@@ -6,17 +6,15 @@ Each timestep follows this exact sequence:
 
 1. **Resource Spawning**
    - Grass grows on empty tiles at configured rate
-   - Water tiles always available (static 20% of grid)
    
 2. **Agent Action Phase (Randomized Order)**
    - All agents execute their action in random order
-   - Actions include: move, eat, drink, idle, reproduce
+   - Actions include: move, eat, idle, reproduce
    - Each agent receives immediate reward signal
    
 3. **Energy Decay & Cleanup**
-   - Apply per-step energy decay to all agents: -0.3 energy
+   - Apply per-step energy decay to all agents: -0.12 energy
    - Check for agent starvation (energy <= 0): mark as dead
-   - Check for critical thirst (thirst < 20): apply penalty -2.0
    
 4. **Dead Agent Removal**
    - Remove all marked-dead agents from environment
@@ -38,15 +36,9 @@ Each timestep follows this exact sequence:
 - **Consumption**: Prey eat grass, gain 40 energy
 - **Regrowth**: Continuous regeneration at environment rate
 
-### Water Access
-- **Location**: Static 20% of grid (150×150 = ~4,500 water tiles)
-- **Consumption**: Agents drink to reduce thirst
-- **Thirst Reduction**: Drinking reduces thirst value
-- **Observation**: Agents observe if water is nearby (binary: yes/no)
-
 ### Energy System
 - **Maximum**: 100 energy per agent
-- **Decay**: -0.3 per step (base metabolic cost)
+- **Decay**: -0.12 per step (base metabolic cost)
 - **Movement Cost**: -0.15 per move action
 - **Starting Energy - Prey**: 70
 - **Starting Energy - Predator**: 85
@@ -71,11 +63,6 @@ Each timestep follows this exact sequence:
   - Example: Prey with 50 energy → Predator gains 5 energy (10% efficiency)
 - **Reward**: Predator gets energy_transferred + 15.0 bonus (hunting success reward)
 
-### Critical Thirst
-- **Trigger**: Thirst < 20
-- **Penalty**: --2.0 reward immediately
-- **Does NOT Kill**: Agent survives but receives negative reinforcement to learn drinking
-
 ---
 
 ## 4. REPRODUCTION RULES
@@ -83,24 +70,24 @@ Each timestep follows this exact sequence:
 ### PREY Reproduction
 
 **Eligibility Criteria:**
-- Energy >= 60
+- Energy >= 55
 - reproduction_cooldown == 0 (not in cooldown from recent reproduction)
-- Population < global carrying capacity (0.01 × grid area)
-- Partner found: another prey with energy >= 60 and cooldown == 0
+- Population < global carrying capacity (0.015 × grid area)
+- Partner found: another prey with energy >= 55 and cooldown == 0
 
 **Probability:**
 - P(reproduce) = (energy_surplus / max_surplus) × 0.8
-  - energy_surplus = energy - 60
-  - max_surplus = 100 - 60
+  - energy_surplus = energy - 55
+  - max_surplus = 100 - 55
   - Example: Prey with 80 energy → (80-60)/(100-60) × 0.8 = 0.4 = 40% chance
   
 **Energy Cost:**
-- Parent 1 loses 30 energy
-- Parent 2 loses 30 energy
-- Offspring born with 40 energy
+- Parent 1 loses 25 energy
+- Parent 2 loses 25 energy
+- Offspring born with 50 energy
 
 **Cooldown & Mate-Locking:**
-- Both parents get reproduction_cooldown = 5
+- Both parents get reproduction_cooldown = 8
 - Prevents same agents from reproducing twice in quick succession
 - Mate-locking: Check mate.reproduction_cooldown > 0 to prevent double-mating
 
@@ -149,9 +136,7 @@ Each timestep follows this exact sequence:
 |--------|------|----------|---------|
 | Eating Grass | energy_gained × 1.0 | N/A | Grass consumed |
 | Hunting | N/A | transfer × 1.0 + 0.25 | Prey killed |
-| Drinking | 0.5 | 0.5 | Water consumed |
 | Reproduction | 0.5 | 0.5 | Offspring born |
-| Thirst Penalty | -2.0 | -2.0 | Thirst < 20 |
 | Step Penalty | -0.01 | -0.01 | Every step |
 | Death Penalty | -10 | -10 | Agent dies |
 
@@ -159,40 +144,37 @@ Each timestep follows this exact sequence:
 
 ## 6. OBSERVATION SPACE (Agent View)
 
-Each agent observes 8 normalized dimensions [0, 1]:
+Each agent observes 7 normalized dimensions [0, 1]:
 
 1. **Energy**: current_energy / 100
-2. **Thirst**: current_thirst / MAX_THIRST
-3. **Predator Distance** (Prey only): normalized distance to nearest predator
-4. **Predator Direction X** (Prey only): -1 (left) to +1 (right)
-5. **Predator Direction Y** (Prey only): -1 (up) to +1 (down)
-6. **Predator Detected** (Prey only): 1 if nearby, 0 otherwise
-7. **Can Reproduce**: 1 if eligible (energy ≥ threshold, cooldown=0, mate found), 0 otherwise
-8. **Water Nearby**: 1 if water within 1 tile, 0 otherwise
+2. **Target Distance** (Prey: predator, Predator: prey): normalized distance to nearest target
+3. **Target Direction X** (Prey: predator, Predator: prey): -1 (left) to +1 (right)
+4. **Target Direction Y** (Prey: predator, Predator: prey): -1 (up) to +1 (down)
+5. **Target Detected** (Prey: predator, Predator: prey): 1 if nearby, 0 otherwise
+6. **Can Reproduce**: 1 if eligible (energy >= threshold, cooldown=0, mate found), 0 otherwise
+7. **Padding**: Placeholder dimension (unused, always 0 or 1)
 
-State discretization: 5,400 unique states (5⁸ combinations)
+State discretization: 2,160 unique states (5 × 3³ × 2³ combinations)
 
 ---
 
 ## 7. ACTION SPACE
 
-Each agent can perform 11 actions:
+Each agent can perform 10 actions:
 
 | Index | Action | Effect |
 |-------|--------|--------|
 | 0-7 | Move (N, NE, E, SE, S, SW, W, NW) | Move to adjacent tile, costs 0.15 energy |
 | 8 | Eat | Consume grass (prey) or hunt (predator) |
-| 9 | Drink | Reduce thirst if water nearby |
-| 10 | Idle | Do nothing |
+| 9 | Idle | Do nothing |
 
 ---
 
 ## 8. GRID CONFIGURATION
 
 - **Dimensions**: 150 × 150 = 22,500 tiles
-- **Grass Coverage**: ~70% of available space (empty tiles)
-- **Water Coverage**: ~20% (static)
-- **Empty Tiles**: ~10%
+- **Grass Coverage**: ~80% of available space
+- **Empty Tiles**: ~20%
 
 ---
 

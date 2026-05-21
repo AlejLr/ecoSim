@@ -15,22 +15,18 @@ SEED = 42  # Global seed for numpy, random, gym - set to None for non-determinis
 
 # ENVIRONMENT
 GRASS_ENERGY = 40
-WATER_HYDRATION = 20
 GRASS_REGROWTH_STEPS = 8      # Steps before a depleted grass tile becomes available again
 
 TILE_DISTRIBUTION = {
-    "grass": 0.7,
-    "water": 0.2,
-    "empty": 0.1
+    "grass": 0.8,
+    "empty": 0.2
 }
 
 # AGENTS
 NUM_AGENTS = 10                 # Total agents in environment
 MAX_AGENT_ENERGY = 100          # All agents have same max energy
-ENERGY_DECAY_PER_STEP = 0.3     # Agents lose 0.3 energy per step (rebalanced for sustainability)
+ENERGY_DECAY_PER_STEP = 0.12    # Agents lose 0.12 energy per step (reduced from 0.3 for sustainability)
 MOVEMENT_ENERGY_COST = 0.15     # Extra energy cost when a move action is taken
-MAX_THIRST = 100
-THIRST_DECAY_PER_STEP = 0.5     # Agents lose 0.5 thirst per step (reduced for sustainability)
 VISION_RADIUS = 6               # All agents can see 6 tiles away
 ACTION_RADIUS = 3               # All agents can act within 3 tiles (increased for predator hunting)
 
@@ -51,61 +47,50 @@ ONE_V_ONE_STEPS = 350           # Step limit for 1v1 protocol (prey survival thr
 
 # REWARDS
 ENERGY_REWARD_SCALE = 1.0       # Reward = energy_gained * scale
-DRINKING_REWARD = 0.5           # Reward for successfully drinking
 REPRODUCTION_REWARD = 15.0       # Reward for successful reproduction
-THIRST_PENALTY_THRESHOLD = 20   # If thirst drops below this, additional penalty
-THIRST_CRITICAL_PENALTY = -2.0  # Penalty when thirst is critically low
 DEATH_PENALTY = -10             # Penalty for dying
 STEP_PENALTY = -0.01            # Small penalty per step
 SURVIVE_BONUS = 0.1             # Small bonus for staying alive
 
 # Hunting and detection reward tuning
-HUNTING_SUCCESS_BONUS = 0.25    # Small bonus for successful hunt (added to energy-based reward)
+HUNTING_SUCCESS_BONUS = 2.0     # Reward for successful hunt (increased from 0.25 to make hunting viable)
 PREDATOR_DETECTION_BONUS = 0.0  # Small bonus when predator detects prey (kept 0 to avoid bias)
-PREY_DETECTION_PENALTY = 0.0    # Small penalty when prey detects predator (avoid large penalties)
+PREY_DETECTION_PENALTY = -0.5   # Penalty when prey detects predator (teaches evasion)
 PREY_PREDATION_SUSTAINABILITY_THRESHOLD = 75  # Below this prey count, hunting reward is reduced
 
 # Reward equation for each agent
 # Reward function:
-# For each agent, reward depends on the event e ∈ {step, eat, drink, reproduce}.
+# For each agent, reward depends on the event e ∈ {step, eat, reproduce}.
 #
 # Generic:
 # R(a,e) =
 #   R_step(a)       if e = step
 #   R_eat(a)        if e = eat
-#   R_drink(a)      if e = drink
 #   R_reproduce(a)  if e = reproduce
 #
 # Step reward:
 # R_step(a) = rho_step
-#           + I[h(a) < h_min] * rho_thirst
 #           + I[d(a)] * rho_detect(a)
 #
 # Prey:
 # R_step_prey = rho_step
-#             + I[h < h_min] * rho_thirst
 #             + I[d_pred] * rho_pred_detect
 #
 # R_eat_prey       = rho_step + alpha_E * G_grass
-# R_drink_prey     = rho_step + rho_drink
 # R_reproduce_prey = rho_step + rho_repr
 #
 # Predator:
 # R_step_pred = rho_step
-#             + I[h < h_min] * rho_thirst
 #             + I[d_prey] * rho_prey_detect
 #
 # R_eat_pred = rho_step
 #            + alpha_E * 0.25 * G_prey
 #            + rho_hunt * min(1, N_prey / N_thresh)
 #
-# R_drink_pred     = rho_step + rho_drink
 # R_reproduce_pred = rho_step + rho_repr
 #
 # Compact event-based form:
 # R_prey = rho_step
-#        + rho_thirst * I[h < h_min]
-#        + rho_drink * I[e == drink]
 #        + alpha_E * G_grass * I[e == eat]
 #        + rho_repr * I[e == reproduce]
 #        + rho_pred_detect * I[d_pred]
@@ -120,13 +105,13 @@ PREY_PREDATION_SUSTAINABILITY_THRESHOLD = 75  # Below this prey count, hunting r
 
 # REPRODUCTION
 REPRODUCTION_ENABLED = True     # Enable prey reproduction
-PREY_REPRODUCTION_THRESHOLD = 60    # Min energy needed to reproduce (was 70, now delayed)
-PREY_REPRODUCTION_ENERGY_COST = 30  # Energy cost for prey to reproduce
-PREY_OFFSPRING_ENERGY = 40      # Offspring start with this energy
+PREY_REPRODUCTION_THRESHOLD = 55    # Min energy needed to reproduce (lowered to enable pop growth)
+PREY_REPRODUCTION_ENERGY_COST = 25  # Energy cost for prey to reproduce (reduced from 30)
+PREY_OFFSPRING_ENERGY = 50      # Offspring start with this energy (increased from 40 for viability)
 PREY_REPRODUCTION_SEARCH_RADIUS = 2  # Nearby tiles to search for a free birth location
-PREY_CARRYING_CAPACITY_RATIO = 0.01  # Fraction of grid cells that can be occupied by prey
+PREY_CARRYING_CAPACITY_RATIO = 0.015  # Fraction of grid cells that can be occupied by prey (increased from 0.01)
 PREY_CARRYING_CAPACITY = int(GRID_SUBENV[0] * GRID_SUBENV[1] * PREY_CARRYING_CAPACITY_RATIO)
-PREY_REPRODUCTION_COOLDOWN = 5
+PREY_REPRODUCTION_COOLDOWN = 8
 PREY_REPRODUCTION_PROB_SCALE = 0.8  # Reproduction probability = (energy_surplus / max_surplus) * scale
 PREDATOR_REPRODUCTION_ENABLED = True
 PREDATOR_REPRODUCTION_THRESHOLD = 70  # Min energy (lowered for more reproduction opportunities)

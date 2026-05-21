@@ -24,9 +24,9 @@ def set_global_seed(seed=None):
         np.random.seed(seed)
         
         # Note: gym/gymnasium seeding is done per-env in reset()
-        print(f"✓ Global seed set to {seed}")
+        print(f"[OK] Global seed set to {seed}")
     else:
-        print("✓ Non-deterministic mode (seed=None)")
+        print("[OK] Non-deterministic mode (seed=None)")
 
 
 def seed_env(env, seed=None):

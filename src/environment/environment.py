@@ -19,10 +19,13 @@ class grid_env():
         self.predation_attempts = 0
         self.predation_successes = 0
         self.predation_failures = 0
+        # Telemetry: per-state predation counts and reproduction counters
+        self.predation_by_state = defaultdict(int)
+        self.reproduction_attempts = 0
+        self.reproduction_successes = 0
         
         self.tile_class = {
             "grass": GrassTile,
-            "water": WaterTile,
             "empty": EmptyTile
         }
         

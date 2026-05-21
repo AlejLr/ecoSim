@@ -13,9 +13,6 @@ from config.config import (
     MOVEMENT_ENERGY_COST,
     GRASS_ENERGY,
     MAX_AGENT_ENERGY,
-    THIRST_PENALTY_THRESHOLD,
-    THIRST_CRITICAL_PENALTY,
-    DRINKING_REWARD,
     STEP_PENALTY,
     DEATH_PENALTY,
     REPRODUCTION_REWARD,
@@ -56,17 +53,15 @@ Each timestep follows this exact sequence:
 
 1. **Resource Spawning**
    - Grass grows on empty tiles at configured rate
-   - Water tiles always available (static 20% of grid)
    
 2. **Agent Action Phase (Randomized Order)**
    - All agents execute their action in random order
-   - Actions include: move, eat, drink, idle, reproduce
+   - Actions include: move, eat, idle, reproduce
    - Each agent receives immediate reward signal
    
 3. **Energy Decay & Cleanup**
    - Apply per-step energy decay to all agents: -{ENERGY_DECAY_PER_STEP} energy
    - Check for agent starvation (energy <= 0): mark as dead
-   - Check for critical thirst (thirst < {THIRST_PENALTY_THRESHOLD}): apply penalty {THIRST_CRITICAL_PENALTY}
    
 4. **Dead Agent Removal**
    - Remove all marked-dead agents from environment
@@ -87,12 +82,6 @@ Each timestep follows this exact sequence:
 - **Energy Value**: {GRASS_ENERGY} energy per grass
 - **Consumption**: Prey eat grass, gain {GRASS_ENERGY} energy
 - **Regrowth**: Continuous regeneration at environment rate
-
-### Water Access
-- **Location**: Static 20% of grid (150×150 = ~4,500 water tiles)
-- **Consumption**: Agents drink to reduce thirst
-- **Thirst Reduction**: Drinking reduces thirst value
-- **Observation**: Agents observe if water is nearby (binary: yes/no)
 
 ### Energy System
 - **Maximum**: {MAX_AGENT_ENERGY} energy per agent
@@ -120,11 +109,6 @@ Each timestep follows this exact sequence:
 - **Energy Transfer**: Predator gains (prey_energy × {HUNTING_EFFICIENCY})
   - Example: Prey with 50 energy → Predator gains 5 energy (10% efficiency)
 - **Reward**: Predator gets energy_transferred + {REPRODUCTION_REWARD} bonus (hunting success reward)
-
-### Critical Thirst
-- **Trigger**: Thirst < {THIRST_PENALTY_THRESHOLD}
-- **Penalty**: -{THIRST_CRITICAL_PENALTY} reward immediately
-- **Does NOT Kill**: Agent survives but receives negative reinforcement to learn drinking
 
 ---
 
@@ -199,9 +183,7 @@ Each timestep follows this exact sequence:
 |--------|------|----------|---------|
 | Eating Grass | energy_gained × 1.0 | N/A | Grass consumed |
 | Hunting | N/A | transfer × 1.0 + 0.25 | Prey killed |
-| Drinking | 0.5 | 0.5 | Water consumed |
 | Reproduction | 0.5 | 0.5 | Offspring born |
-| Thirst Penalty | -2.0 | -2.0 | Thirst < {THIRST_PENALTY_THRESHOLD} |
 | Step Penalty | -0.01 | -0.01 | Every step |
 | Death Penalty | -10 | -10 | Agent dies |
 
@@ -209,40 +191,37 @@ Each timestep follows this exact sequence:
 
 ## 6. OBSERVATION SPACE (Agent View)
 
-Each agent observes 8 normalized dimensions [0, 1]:
+Each agent observes 7 normalized dimensions [0, 1]:
 
 1. **Energy**: current_energy / {MAX_AGENT_ENERGY}
-2. **Thirst**: current_thirst / MAX_THIRST
-3. **Predator Distance** (Prey only): normalized distance to nearest predator
-4. **Predator Direction X** (Prey only): -1 (left) to +1 (right)
-5. **Predator Direction Y** (Prey only): -1 (up) to +1 (down)
-6. **Predator Detected** (Prey only): 1 if nearby, 0 otherwise
-7. **Can Reproduce**: 1 if eligible (energy ≥ threshold, cooldown=0, mate found), 0 otherwise
-8. **Water Nearby**: 1 if water within 1 tile, 0 otherwise
+2. **Target Distance** (Prey: predator, Predator: prey): normalized distance to nearest target
+3. **Target Direction X** (Prey: predator, Predator: prey): -1 (left) to +1 (right)
+4. **Target Direction Y** (Prey: predator, Predator: prey): -1 (up) to +1 (down)
+5. **Target Detected** (Prey: predator, Predator: prey): 1 if nearby, 0 otherwise
+6. **Can Reproduce**: 1 if eligible (energy >= threshold, cooldown=0, mate found), 0 otherwise
+7. **Padding**: Placeholder dimension (unused, always 0 or 1)
 
-State discretization: 5,400 unique states (5⁸ combinations)
+State discretization: 2,160 unique states (5 × 3³ × 2³ combinations)
 
 ---
 
 ## 7. ACTION SPACE
 
-Each agent can perform 11 actions:
+Each agent can perform 10 actions:
 
 | Index | Action | Effect |
 |-------|--------|--------|
 | 0-7 | Move (N, NE, E, SE, S, SW, W, NW) | Move to adjacent tile, costs {MOVEMENT_ENERGY_COST} energy |
 | 8 | Eat | Consume grass (prey) or hunt (predator) |
-| 9 | Drink | Reduce thirst if water nearby |
-| 10 | Idle | Do nothing |
+| 9 | Idle | Do nothing |
 
 ---
 
 ## 8. GRID CONFIGURATION
 
 - **Dimensions**: 150 × 150 = 22,500 tiles
-- **Grass Coverage**: ~70% of available space (empty tiles)
-- **Water Coverage**: ~20% (static)
-- **Empty Tiles**: ~10%
+- **Grass Coverage**: ~80% of available space
+- **Empty Tiles**: ~20%
 
 ---
 
@@ -289,7 +268,7 @@ def save_environment_log(run_number):
     with open(log_path, 'w', encoding='utf-8') as f:
         f.write(doc)
     
-    print(f"✓ Environment documentation saved: {log_path}")
+    print(f"[OK] Environment documentation saved: {log_path}")
     return log_path
 
 
@@ -335,7 +314,7 @@ def save_simulation_metrics(run_number, metrics_list, agent_type="PREY"):
         writer.writeheader()
         writer.writerows(metrics_list)
     
-    print(f"✓ Simulation metrics saved: {csv_path}")
+    print(f"[OK] Simulation metrics saved: {csv_path}")
     return csv_path
 
 

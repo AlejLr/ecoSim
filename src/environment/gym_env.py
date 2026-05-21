@@ -16,8 +16,8 @@ class EcoSimEnv(gym.Env):
     
     Main learning agent is typically PREY. Other agents are random actors.
     
-    Observation: 5 normalized floats [energy, thirst, food_count, water_count, other_agents]
-    Action space: 11 discrete actions (0-7: move, 8: eat, 9: drink, 10: idle)
+    Observation: 7 normalized floats [energy, target_distance, target_dir_x, target_dir_y, target_detected, can_reproduce, pad]
+    Action space: 10 discrete actions (0-7: move, 8: eat, 9: idle)
     Reward: energy_gained - step_penalty, or death_penalty on death
     """
     
@@ -36,12 +36,12 @@ class EcoSimEnv(gym.Env):
         self.same_species_type = same_species_type.upper() if same_species_type else None
         self.frozen_policy_epsilon = float(frozen_policy_epsilon)
         
-        # Action space: 8 moves + eat + drink + idle
-        self.action_space = spaces.Discrete(11)
+        # Action space: 8 moves + eat + idle
+        self.action_space = spaces.Discrete(10)
         
-        # Observation space: [energy, thirst, target_distance, target_dir_x, target_dir_y, target_detected, can_reproduce, water_nearby]
-        # Same for both prey and predator (8 dims)
-        self.observation_space = spaces.Box(low=0, high=1, shape=(8,), dtype=np.float32)
+        # Observation space: [energy, target_distance, target_dir_x, target_dir_y, target_detected, can_reproduce, pad]
+        # Same for both prey and predator (7 dims)
+        self.observation_space = spaces.Box(low=0, high=1, shape=(7,), dtype=np.float32)
         
         # Initialize environment
         self.env = None
@@ -105,15 +105,69 @@ class EcoSimEnv(gym.Env):
     def _get_other_agent_action(self, agent):
         """Get action for other agent - use custom opponent, trained model, or random"""
 
+        def _nearest_saved_state_action(model, state_tuple):
+            """Return greedy action from the closest saved state, or None if unavailable."""
+            saved_keys = getattr(model, 'saved_state_keys', None)
+            if not saved_keys:
+                return None
+
+            if state_tuple in saved_keys:
+                return model.select_action(state_tuple, training=False)
+
+            # Euclidean distance over the discrete tuple is enough for a cheap fallback.
+            nearest_state = min(
+                saved_keys,
+                key=lambda saved_state: sum((int(a) - int(b)) ** 2 for a, b in zip(saved_state, state_tuple)),
+            )
+            return model.select_action(nearest_state, training=False)
+
+        def _target_within_action_radius(current_agent):
+            """Check whether a relevant target is within ACTION_RADIUS for a loaded policy."""
+            target_type = "PREY" if current_agent.agent_type == "PREDATOR" else "PREDATOR"
+            for dx in range(-ACTION_RADIUS, ACTION_RADIUS + 1):
+                for dy in range(-ACTION_RADIUS, ACTION_RADIUS + 1):
+                    check_pos = (current_agent.position[0] + dx, current_agent.position[1] + dy)
+                    if check_pos not in self.env.agents_by_position:
+                        continue
+                    for nearby_agent in self.env.agents_by_position[check_pos]:
+                        if nearby_agent.agent_type == target_type and nearby_agent.is_alive():
+                            return True
+            return False
+
         # Tiny exploration for frozen policies to avoid fully deterministic swarms.
         if self.frozen_policy_epsilon > 0 and random.random() < self.frozen_policy_epsilon:
             return random.randint(0, 10)
+
+        obs = None
+        state = None
+
+        def _ensure_state(model):
+            nonlocal obs, state
+            if obs is None:
+                obs = agent.get_observation(self.env)
+            if state is None:
+                state = model.discretize_state(obs)
+            return state
+
+        def _eat_if_target_is_close():
+            # Only meaningful for predator policies because action 8 means "eat prey".
+            if agent.agent_type != "PREDATOR":
+                return None
+            if not _target_within_action_radius(agent):
+                return None
+            return 8
         
         # Priority 1: Use custom opponent agent if provided and matches type
         if self.opponent_agent is not None and self.opponent_type == agent.agent_type:
             try:
-                obs = agent.get_observation(self.env)
-                state = self.opponent_agent.discretize_state(obs)
+                state = _ensure_state(self.opponent_agent)
+                if state not in getattr(self.opponent_agent, 'saved_state_keys', set()):
+                    fallback_action = _eat_if_target_is_close()
+                    if fallback_action is not None:
+                        return fallback_action
+                    action = _nearest_saved_state_action(self.opponent_agent, state)
+                    if action is not None:
+                        return action
                 action = self.opponent_agent.select_action(state, training=False)
                 return action
             except Exception:
@@ -122,8 +176,14 @@ class EcoSimEnv(gym.Env):
         # Priority 2: Use frozen same-species policy for background agents of training species
         if self.same_species_agent is not None and self.same_species_type == agent.agent_type:
             try:
-                obs = agent.get_observation(self.env)
-                state = self.same_species_agent.discretize_state(obs)
+                state = _ensure_state(self.same_species_agent)
+                if state not in getattr(self.same_species_agent, 'saved_state_keys', set()):
+                    fallback_action = _eat_if_target_is_close()
+                    if fallback_action is not None:
+                        return fallback_action
+                    action = _nearest_saved_state_action(self.same_species_agent, state)
+                    if action is not None:
+                        return action
                 action = self.same_species_agent.select_action(state, training=False)
                 return action
             except Exception:
@@ -131,13 +191,25 @@ class EcoSimEnv(gym.Env):
         
         # Priority 3: Use trained model if available
         if agent.agent_type == "PREY" and self.trained_prey_model:
-            obs = agent.get_observation(self.env)
-            state = self.trained_prey_model.discretize_state(obs)
+            state = _ensure_state(self.trained_prey_model)
+            if state not in getattr(self.trained_prey_model, 'saved_state_keys', set()):
+                fallback_action = _eat_if_target_is_close()
+                if fallback_action is not None:
+                    return fallback_action
+                action = _nearest_saved_state_action(self.trained_prey_model, state)
+                if action is not None:
+                    return action
             action = self.trained_prey_model.select_action(state, training=False)
             return action
         elif agent.agent_type == "PREDATOR" and self.trained_predator_model:
-            obs = agent.get_observation(self.env)
-            state = self.trained_predator_model.discretize_state(obs)
+            state = _ensure_state(self.trained_predator_model)
+            if state not in getattr(self.trained_predator_model, 'saved_state_keys', set()):
+                fallback_action = _eat_if_target_is_close()
+                if fallback_action is not None:
+                    return fallback_action
+                action = _nearest_saved_state_action(self.trained_predator_model, state)
+                if action is not None:
+                    return action
             action = self.trained_predator_model.select_action(state, training=False)
             return action
         else:
@@ -252,6 +324,12 @@ class EcoSimEnv(gym.Env):
         
         for agent in self.other_agents:
             if agent.is_alive() and hasattr(agent, 'reproduce'):
+                # Count reproduction attempts for telemetry
+                try:
+                    self.env.reproduction_attempts += 1
+                except Exception:
+                    pass
+
                 if agent.agent_type == "PREY":
                     offspring = agent.reproduce(
                         self.env,
@@ -275,10 +353,13 @@ class EcoSimEnv(gym.Env):
                     agent.episode_reward += reward_for_agent(
                         agent.agent_type,
                         event="reproduce",
-                        thirst=agent.thirst,
                     )
                     offspring_list.append(offspring)
                     self.next_agent_id += 1
+                    try:
+                        self.env.reproduction_successes += 1
+                    except Exception:
+                        pass
                     if offspring.agent_type == "PREY":
                         current_prey_count += 1
                     else:
@@ -316,7 +397,6 @@ class EcoSimEnv(gym.Env):
                 self.agent.episode_reward += reward_for_agent(
                     self.agent.agent_type,
                     event="reproduce",
-                    thirst=self.agent.thirst,
                 )
                 
                 self.other_agents.append(offspring)

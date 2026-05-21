@@ -273,9 +273,9 @@ class FixedOpponentProtocol(TrainingProtocol):
                 print(f"✓ Loaded PREY model from {resume_prey}")
             except Exception:
                 print(f"! Failed to load PREY model from {resume_prey}; starting from scratch")
-                prey_agent = QLearningAgent(agent_id=0, num_actions=11, num_states=5400)
+                prey_agent = QLearningAgent(agent_id=0, num_actions=10, num_states=2160)
         else:
-            prey_agent = QLearningAgent(agent_id=0, num_actions=11, num_states=5400)
+            prey_agent = QLearningAgent(agent_id=0, num_actions=10, num_states=2160)
 
         if resume_predator:
             try:
@@ -283,9 +283,9 @@ class FixedOpponentProtocol(TrainingProtocol):
                 print(f"✓ Loaded PREDATOR model from {resume_predator}")
             except Exception:
                 print(f"! Failed to load PREDATOR model from {resume_predator}; starting from scratch")
-                predator_agent = QLearningAgent(agent_id=1, num_actions=11, num_states=5400)
+                predator_agent = QLearningAgent(agent_id=1, num_actions=10, num_states=2160)
         else:
-            predator_agent = QLearningAgent(agent_id=1, num_actions=11, num_states=5400)
+            predator_agent = QLearningAgent(agent_id=1, num_actions=10, num_states=2160)
 
         # Training loop (1v1 episodes)
         prey_rewards_per_ep = []
@@ -547,19 +547,21 @@ class AlternatingTrainingProtocol(TrainingProtocol):
             print(f"\n--- CYCLE {cycle + 1}/{num_cycles} ---\n")
 
             if prey_agent is None:
-                prey_agent = QLearningAgent(agent_id=0, num_actions=11, num_states=5400)
+                prey_agent = QLearningAgent(agent_id=0, num_actions=10, num_states=2160)
             else:
                 prey_agent.epsilon = EPSILON_START
 
             if predator_agent is None:
-                predator_agent = QLearningAgent(agent_id=0, num_actions=11, num_states=5400)
+                predator_agent = QLearningAgent(agent_id=0, num_actions=10, num_states=2160)
             else:
                 predator_agent.epsilon = EPSILON_START
 
             print(f"PHASE A: Training PREY (cycle {cycle + 1})...")
-            prey_opponent = predator_agent if cycle > 0 else None
+            prey_opponent = predator_agent
             if prey_opponent is None:
                 print(f"  (PREDATOR: random)")
+            elif cycle == 0:
+                print(f"  (PREDATOR: loaded checkpoint)")
             else:
                 print(f"  (PREDATOR: carried over from previous cycle)")
 
