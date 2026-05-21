@@ -84,7 +84,12 @@ class Agent():
             pass
 
         obs = self.get_observation(environment)
-        detected = obs[4] > 0
+        # Use the pad slot for PREY to carry predator detection (index 6).
+        # Keep predators using obs[4] (prey detected) to preserve compatibility.
+        if self.agent_type == "PREY":
+            detected = obs[6] > 0
+        else:
+            detected = obs[4] > 0
         immediate_reward += reward_for_agent(
             self.agent_type,
             event="step",
@@ -195,7 +200,17 @@ class Agent():
                 food_detected = 1 if closest_dist <= ACTION_RADIUS else 0
             
             can_reproduce = self._can_reproduce(environment)
-            pad = 0  # Placeholder for consistent 7-dim state space
+            # Repurpose pad to indicate nearby predator detection for PREY (0/1)
+            nearby_agents = self.get_nearby_agents(environment)
+            predators = [a for a in nearby_agents if a.agent_type == "PREDATOR"]
+            predator_detected = 0
+            if predators:
+                closest_pred = min(predators, key=lambda a: abs(a.position[0] - self.position[0]) + abs(a.position[1] - self.position[1]))
+                pdx = closest_pred.position[0] - self.position[0]
+                pdy = closest_pred.position[1] - self.position[1]
+                pdistance = (abs(pdx) + abs(pdy)) / (2 * self.vision_radius)
+                predator_detected = 1 if pdistance < 0.5 else 0
+            pad = predator_detected
             return np.array([energy_norm, food_distance_norm, 
                             food_dir_x, food_dir_y, food_detected, can_reproduce, pad], dtype=np.float32)
             
@@ -384,6 +399,7 @@ class Predator(Agent):
     def __init__(self, agent_id, position):
         super().__init__(agent_id, position, "PREDATOR")
         self.reproduction_cooldown = 0
+        self.vision_radius = PREDATOR_VISION_RADIUS
         # Predators are faster than prey: move 2 tiles per move
         self.speed = 2
     
