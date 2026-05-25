@@ -1,9 +1,18 @@
 from random import choice
 
 from config.config import *
+from models.coexistence_metrics import coexistence_reward
 
 
-def reward_for_agent(agent_type, *, event="step", energy_gained=0.0, detected=False, current_prey_count=None):
+def reward_for_agent(
+    agent_type,
+    *,
+    event="step",
+    energy_gained=0.0,
+    detected=False,
+    current_prey_count=None,
+    current_predator_count=None,
+):
     """Explicit reward equation for PREY and PREDATOR agents.
 
     event can be one of: step, eat, reproduce.
@@ -13,6 +22,13 @@ def reward_for_agent(agent_type, *, event="step", energy_gained=0.0, detected=Fa
 
     if event in {"step", "eat", "reproduce"}:
         reward += STEP_PENALTY
+
+    if (
+        event == "step"
+        and current_prey_count is not None
+        and current_predator_count is not None
+    ):
+        reward += coexistence_reward(current_prey_count, current_predator_count)
 
     if agent_kind == "PREY":
         if event == "eat":
@@ -94,6 +110,8 @@ class Agent():
             self.agent_type,
             event="step",
             detected=detected,
+            current_prey_count=sum(1 for a in environment.agents if a.is_alive() and a.agent_type == "PREY"),
+            current_predator_count=sum(1 for a in environment.agents if a.is_alive() and a.agent_type == "PREDATOR"),
         )
         
         return immediate_reward

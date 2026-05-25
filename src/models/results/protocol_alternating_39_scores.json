@@ -1,0 +1,46 @@
+{
+  "pred_scores": [
+    [
+      "trained_predator_39_protocol2_cycle5.pkl",
+      47.45697129401427
+    ],
+    [
+      "trained_predator_39_protocol2_cycle4.pkl",
+      44.53305682212745
+    ],
+    [
+      "trained_predator_39_protocol2_cycle3.pkl",
+      38.315678261623525
+    ],
+    [
+      "trained_predator_39_protocol2_cycle2.pkl",
+      35.07260360977559
+    ],
+    [
+      "trained_predator_39_protocol2_cycle1.pkl",
+      23.796899396946504
+    ]
+  ],
+  "prey_scores": [
+    [
+      "trained_prey_39_protocol2_cycle5.pkl",
+      106.59688363675701
+    ],
+    [
+      "trained_prey_39_protocol2_cycle4.pkl",
+      101.27936066717265
+    ],
+    [
+      "trained_prey_39_protocol2_cycle3.pkl",
+      94.83291150566279
+    ],
+    [
+      "trained_prey_39_protocol2_cycle2.pkl",
+      87.54579225315236
+    ],
+    [
+      "trained_prey_39_protocol2_cycle1.pkl",
+      77.07888188514816
+    ]
+  ]
+}

@@ -55,6 +55,7 @@ from config.utils import set_global_seed, get_next_run_number, get_latest_model_
 from environment.gym_env import EcoSimEnv
 from environment.logger import save_environment_log
 from agents.agent import Predator
+from models.coexistence_metrics import coexistence_score
 from models.Q_learning import QLearningAgent
 
 
@@ -88,6 +89,7 @@ class TrainingProtocol:
             'predator_population': len(alive_predators),
             'avg_prey_energy': float(np.mean([a.energy for a in alive_prey] or [0])),
             'avg_predator_energy': float(np.mean([a.energy for a in alive_predators] or [0])),
+            'coexistence_score': coexistence_score(len(alive_prey), len(alive_predators)),
         }
 
     @contextmanager
@@ -198,7 +200,7 @@ class TrainingProtocol:
             if self.metrics['populations']:
                 fieldnames = ['episode', 'reward', 'steps', 'eval_reward', 'outcome',
                              'prey_population', 'predator_population', 
-                             'avg_prey_energy', 'avg_predator_energy']
+                             'avg_prey_energy', 'avg_predator_energy', 'coexistence_score']
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
                 
@@ -218,6 +220,7 @@ class TrainingProtocol:
                         'predator_population': pop.get('predator_population', 0),
                         'avg_prey_energy': pop.get('avg_prey_energy', 0),
                         'avg_predator_energy': pop.get('avg_predator_energy', 0),
+                        'coexistence_score': pop.get('coexistence_score', 0),
                     })
             else:
                 # Fallback to basic CSV without population data
@@ -263,8 +266,20 @@ class FixedOpponentProtocol(TrainingProtocol):
         print(f"{'='*70}")
         print(f"Mode: Both PREY and PREDATOR learn simultaneously")
         print(f"Episodes: {self.num_episodes}")
-        print(f"Environment: 1 prey, 1 predator | Episode ends on predation or {ONE_V_ONE_STEPS} steps")
+        print(f"Environment: 1 prey, 1 predator | no background prey | Episode ends on predation or {ONE_V_ONE_STEPS} steps")
         print(f"{'='*70}\n")
+
+        protocol1_epsilon_start = 0.10
+        protocol1_epsilon_decay = 0.9985
+        protocol1_epsilon_min = 0.02
+        protocol1_predation_bonus = 5.0
+
+        def _configure_protocol1_exploration(agent):
+            agent.set_exploration(
+                epsilon=protocol1_epsilon_start,
+                epsilon_decay=protocol1_epsilon_decay,
+                epsilon_min=protocol1_epsilon_min,
+            )
 
         # Initialize two learning agents (allow resuming from checkpoints)
         if resume_prey:
@@ -273,9 +288,25 @@ class FixedOpponentProtocol(TrainingProtocol):
                 print(f"✓ Loaded PREY model from {resume_prey}")
             except Exception:
                 print(f"! Failed to load PREY model from {resume_prey}; starting from scratch")
-                prey_agent = QLearningAgent(agent_id=0, num_actions=10, num_states=2160)
+                prey_agent = QLearningAgent(
+                    agent_id=0,
+                    num_actions=10,
+                    num_states=2160,
+                    epsilon_start=protocol1_epsilon_start,
+                    epsilon_decay=protocol1_epsilon_decay,
+                    epsilon_min=protocol1_epsilon_min,
+                )
         else:
-            prey_agent = QLearningAgent(agent_id=0, num_actions=10, num_states=2160)
+            prey_agent = QLearningAgent(
+                agent_id=0,
+                num_actions=10,
+                num_states=2160,
+                epsilon_start=protocol1_epsilon_start,
+                epsilon_decay=protocol1_epsilon_decay,
+                epsilon_min=protocol1_epsilon_min,
+            )
+
+        _configure_protocol1_exploration(prey_agent)
 
         if resume_predator:
             try:
@@ -283,9 +314,25 @@ class FixedOpponentProtocol(TrainingProtocol):
                 print(f"✓ Loaded PREDATOR model from {resume_predator}")
             except Exception:
                 print(f"! Failed to load PREDATOR model from {resume_predator}; starting from scratch")
-                predator_agent = QLearningAgent(agent_id=1, num_actions=10, num_states=2160)
+                predator_agent = QLearningAgent(
+                    agent_id=1,
+                    num_actions=10,
+                    num_states=2160,
+                    epsilon_start=protocol1_epsilon_start,
+                    epsilon_decay=protocol1_epsilon_decay,
+                    epsilon_min=protocol1_epsilon_min,
+                )
         else:
-            predator_agent = QLearningAgent(agent_id=1, num_actions=10, num_states=2160)
+            predator_agent = QLearningAgent(
+                agent_id=1,
+                num_actions=10,
+                num_states=2160,
+                epsilon_start=protocol1_epsilon_start,
+                epsilon_decay=protocol1_epsilon_decay,
+                epsilon_min=protocol1_epsilon_min,
+            )
+
+        _configure_protocol1_exploration(predator_agent)
 
         # Training loop (1v1 episodes)
         prey_rewards_per_ep = []
@@ -297,11 +344,12 @@ class FixedOpponentProtocol(TrainingProtocol):
             # Create fresh 1v1 environment for this episode
             env = EcoSimEnv(
                 agent_id=0,
-                num_prey=1,
+                num_prey=0,
                 num_predators=1,
                 agent_type="PREY",
                 map_path=None,
                 memory=False,
+                grid_size=(100, 100),
             )
             np.random.seed(self._episode_seed(0, 0, episode))
             import random
@@ -310,7 +358,7 @@ class FixedOpponentProtocol(TrainingProtocol):
 
             # Extract prey and predator agents from environment
             prey_agent_in_env = env.agent  # The main agent (always PREY in setup)
-            predator_agent_in_env = env.other_agents[1] if len(env.other_agents) > 1 else None
+            predator_agent_in_env = next((agent for agent in env.other_agents if agent.agent_type == "PREDATOR"), None)
 
             # Link the Q-learning agents to the physical agents
             prey_agent_in_env.q_learning = prey_agent
@@ -328,19 +376,28 @@ class FixedOpponentProtocol(TrainingProtocol):
             done = False
             outcome = ""
             predation_occurred = False
+            predator_first = (episode % 2 == 1)
 
             # Dual-agent 1v1 episode loop
             while not done and episode_step_count < ONE_V_ONE_STEPS:
-                # Prey action
-                prey_action = prey_agent.select_action(prey_state, training=True)
-                prey_reward_step = prey_agent_in_env.action(prey_action, env.env)
+                prey_action = None
+                prey_reward_step = 0
+                predator_action = None
+                predator_reward_step = 0
 
-                # Predator action
-                if predator_agent_in_env and predator_agent_in_env.is_alive():
-                    predator_action = predator_agent.select_action(predator_state, training=True)
-                    predator_reward_step = predator_agent_in_env.action(predator_action, env.env)
+                if predator_first:
+                    if predator_agent_in_env and predator_agent_in_env.is_alive():
+                        predator_action = predator_agent.select_action(predator_state, training=True)
+                        predator_reward_step = predator_agent_in_env.action(predator_action, env.env)
+                    if prey_agent_in_env.is_alive():
+                        prey_action = prey_agent.select_action(prey_state, training=True)
+                        prey_reward_step = prey_agent_in_env.action(prey_action, env.env)
                 else:
-                    predator_reward_step = 0
+                    prey_action = prey_agent.select_action(prey_state, training=True)
+                    prey_reward_step = prey_agent_in_env.action(prey_action, env.env)
+                    if predator_agent_in_env and predator_agent_in_env.is_alive():
+                        predator_action = predator_agent.select_action(predator_state, training=True)
+                        predator_reward_step = predator_agent_in_env.action(predator_action, env.env)
 
                 # Advance environment
                 env.env.update_resources()
@@ -356,7 +413,7 @@ class FixedOpponentProtocol(TrainingProtocol):
                     outcome = "PREDATOR_WIN"
                     done = True
                     # Predator gets full reward, prey gets death penalty
-                    predator_reward_step += HUNTING_SUCCESS_BONUS * 0.5
+                    predator_reward_step += protocol1_predation_bonus
                     prey_reward_step = DEATH_PENALTY
 
                 # Get next observations
@@ -370,8 +427,9 @@ class FixedOpponentProtocol(TrainingProtocol):
                     next_predator_state = predator_state
 
                 # Update Q-tables for both agents
-                prey_agent.update(prey_state, prey_action, prey_reward_step, next_prey_state, done)
-                if predator_agent_in_env and predator_agent_in_env.is_alive():
+                if prey_action is not None:
+                    prey_agent.update(prey_state, prey_action, prey_reward_step, next_prey_state, done)
+                if predator_action is not None and predator_agent_in_env and predator_agent_in_env.is_alive():
                     predator_agent.update(predator_state, predator_action, predator_reward_step, next_predator_state, done)
 
                 # Update states and rewards
@@ -421,15 +479,16 @@ class FixedOpponentProtocol(TrainingProtocol):
         for ei in range(num_evals):
             env = EcoSimEnv(
                 agent_id=0,
-                num_prey=1,
+                num_prey=0,
                 num_predators=1,
                 agent_type="PREY",
                 map_path=None,
                 memory=False,
+                grid_size=(100, 100),
             )
             obs = env.reset(seed=self._episode_seed(0, 9, ei))
             prey_agent_in_env = env.agent
-            predator_agent_in_env = env.other_agents[1] if len(env.other_agents) > 1 else None
+            predator_agent_in_env = next((agent for agent in env.other_agents if agent.agent_type == "PREDATOR"), None)
 
             prey_state = prey_agent.discretize_state(obs)
             predator_obs = predator_agent_in_env.get_observation(env.env) if predator_agent_in_env else obs
@@ -438,16 +497,25 @@ class FixedOpponentProtocol(TrainingProtocol):
             eval_pred_reward = 0
             steps = 0
             done = False
+            predator_first_eval = (ei % 2 == 1)
 
             while steps < ONE_V_ONE_STEPS and not done:
-                prey_action = prey_agent.select_action(prey_state, training=False)
-                prey_reward_step = prey_agent_in_env.action(prey_action, env.env)
+                prey_reward_step = 0
+                predator_reward_step = 0
 
-                if predator_agent_in_env and predator_agent_in_env.is_alive():
-                    predator_action = predator_agent.select_action(predator_state, training=False)
-                    predator_reward_step = predator_agent_in_env.action(predator_action, env.env)
+                if predator_first_eval:
+                    if predator_agent_in_env and predator_agent_in_env.is_alive():
+                        predator_action = predator_agent.select_action(predator_state, training=False)
+                        predator_reward_step = predator_agent_in_env.action(predator_action, env.env)
+                    if prey_agent_in_env.is_alive():
+                        prey_action = prey_agent.select_action(prey_state, training=False)
+                        prey_reward_step = prey_agent_in_env.action(prey_action, env.env)
                 else:
-                    predator_reward_step = 0
+                    prey_action = prey_agent.select_action(prey_state, training=False)
+                    prey_reward_step = prey_agent_in_env.action(prey_action, env.env)
+                    if predator_agent_in_env and predator_agent_in_env.is_alive():
+                        predator_action = predator_agent.select_action(predator_state, training=False)
+                        predator_reward_step = predator_agent_in_env.action(predator_action, env.env)
 
                 env.env.update_resources()
 
@@ -457,7 +525,7 @@ class FixedOpponentProtocol(TrainingProtocol):
 
                 if not prey_agent_in_env.is_alive():
                     done = True
-                    predator_reward_step += HUNTING_SUCCESS_BONUS * 0.5
+                    predator_reward_step += protocol1_predation_bonus
 
                 prey_state = prey_agent.discretize_state(prey_agent_in_env.get_observation(env.env))
                 if predator_agent_in_env and predator_agent_in_env.is_alive():
@@ -510,6 +578,11 @@ class AlternatingTrainingProtocol(TrainingProtocol):
     Reduces non-stationarity by limiting policy change frequency.
     Moderate stability, more realistic interactions.
     """
+
+    def __init__(self, agent_type: str, num_episodes: int, run_number: int, num_prey: int = 30, num_predators: int = 10):
+        super().__init__(agent_type, num_episodes, run_number)
+        self.num_prey = num_prey
+        self.num_predators = num_predators
     
     def train(self, num_cycles: int = 2, start_from_latest: bool = True) -> Dict:
         """Train with alternating phases and carry agents forward across cycles."""
@@ -618,8 +691,8 @@ class AlternatingTrainingProtocol(TrainingProtocol):
 
         env = EcoSimEnv(
             agent_id=0,
-            num_prey=6,
-            num_predators=2,
+            num_prey=self.num_prey,
+            num_predators=self.num_predators,
             agent_type=agent_type,
             map_path=None,
             memory=False,
@@ -778,7 +851,7 @@ class CoLearningProtocol(TrainingProtocol):
         
         from environment.multi_agent_gym_env import MultiAgentEcoSimEnv
         
-        env = MultiAgentEcoSimEnv(num_prey=6, num_predators=2)
+        env = MultiAgentEcoSimEnv(num_prey=30, num_predators=10)
         
         # Would need to implement full multi-agent learning
         # For now, document the approach

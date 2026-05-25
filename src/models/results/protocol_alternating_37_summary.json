@@ -1,0 +1,122 @@
+{
+  "total_rows": 3500,
+  "phases": [
+    "A",
+    "B"
+  ],
+  "agent_types": [
+    "PREY",
+    "PREDATOR"
+  ],
+  "overall_mean_reward": 4576.939939047576,
+  "overall_median_steps": 322.0,
+  "total_predation_events": 27560,
+  "cycles": [
+    {
+      "cycle": 1,
+      "rows": 700,
+      "mean_reward": 4724.4198773809085,
+      "mean_predator_energy": 35.83719285714257,
+      "max_predator_population": 3,
+      "episodes_predator_pop_gt1": 433,
+      "predation_events": 2167,
+      "predator_pos_reward_frac": 0.36857142857142855,
+      "predator_reward_slope": 0.07338155868327735,
+      "predator_reward_r": 0.04228230763888184,
+      "predator_reward_p": 0.43037360611523806
+    },
+    {
+      "cycle": 2,
+      "rows": 700,
+      "mean_reward": 4596.2836607142435,
+      "mean_predator_energy": 41.819841461412,
+      "max_predator_population": 116,
+      "episodes_predator_pop_gt1": 658,
+      "predation_events": 3622,
+      "predator_pos_reward_frac": 0.3,
+      "predator_reward_slope": 0.10844260711166075,
+      "predator_reward_r": 0.04108964132968509,
+      "predator_reward_p": 0.443503446174401
+    },
+    {
+      "cycle": 3,
+      "rows": 700,
+      "mean_reward": 4610.812905952339,
+      "mean_predator_energy": 40.01712392743453,
+      "max_predator_population": 169,
+      "episodes_predator_pop_gt1": 611,
+      "predation_events": 14023,
+      "predator_pos_reward_frac": 0.32,
+      "predator_reward_slope": 0.015479088808887808,
+      "predator_reward_r": 0.01608057132128589,
+      "predator_reward_p": 0.7643425844853193
+    },
+    {
+      "cycle": 4,
+      "rows": 700,
+      "mean_reward": 4348.317828571388,
+      "mean_predator_energy": 36.76254886128357,
+      "max_predator_population": 92,
+      "episodes_predator_pop_gt1": 483,
+      "predation_events": 1911,
+      "predator_pos_reward_frac": 0.3342857142857143,
+      "predator_reward_slope": 0.1027203475713502,
+      "predator_reward_r": 0.11131233689772044,
+      "predator_reward_p": 0.03738943021652202
+    },
+    {
+      "cycle": 5,
+      "rows": 700,
+      "mean_reward": 4604.865422619006,
+      "mean_predator_energy": 42.38696190476166,
+      "max_predator_population": 78,
+      "episodes_predator_pop_gt1": 590,
+      "predation_events": 5837,
+      "predator_pos_reward_frac": 0.3028571428571429,
+      "predator_reward_slope": 0.26643439223410476,
+      "predator_reward_r": 0.06805325491207312,
+      "predator_reward_p": 0.2040567819907623
+    }
+  ],
+  "cycles_with_reproduction": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "num_repro_cycles": 5,
+  "predator_population_increase_episodes": 652,
+  "predator_population_increase_examples": [
+    {
+      "cycle": 1,
+      "episode": 1,
+      "prev": 0,
+      "now": 2
+    },
+    {
+      "cycle": 1,
+      "episode": 3,
+      "prev": 1,
+      "now": 2
+    },
+    {
+      "cycle": 1,
+      "episode": 5,
+      "prev": 1,
+      "now": 2
+    },
+    {
+      "cycle": 1,
+      "episode": 7,
+      "prev": 1,
+      "now": 2
+    },
+    {
+      "cycle": 1,
+      "episode": 9,
+      "prev": 0,
+      "now": 2
+    }
+  ]
+}

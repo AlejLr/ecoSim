@@ -1,0 +1,200 @@
+# Environment Dynamics Documentation - Run #33
+
+## 1. STEP ORDERING (Per Timestep)
+
+Each timestep follows this exact sequence:
+
+1. **Resource Spawning**
+   - Grass grows on empty tiles at configured rate
+   
+2. **Agent Action Phase (Randomized Order)**
+   - All agents execute their action in random order
+   - Actions include: move, eat, idle, reproduce
+   - Each agent receives immediate reward signal
+   
+3. **Energy Decay & Cleanup**
+   - Apply per-step energy decay to all agents: -0.12 energy
+   - Check for agent starvation (energy <= 0): mark as dead
+   
+4. **Dead Agent Removal**
+   - Remove all marked-dead agents from environment
+   - Prevent dead agents from affecting next step
+   - Apply death penalty to their Q-table
+   
+5. **Reproduction Phase**
+   - Check all living agents for reproduction eligibility
+   - Execute pairwise mate-finding and breeding
+   - Place offspring with appropriate starting energy
+
+---
+
+## 2. RESOURCE RULES
+
+### Grass Spawning
+- **Location**: Empty tiles (not water, not agent)
+- **Energy Value**: 40 energy per grass
+- **Consumption**: Prey eat grass, gain 40 energy
+- **Regrowth**: Continuous regeneration at environment rate
+
+### Energy System
+- **Maximum**: 100 energy per agent
+- **Decay**: -0.12 per step (base metabolic cost)
+- **Movement Cost**: -0.15 per move action
+- **Starting Energy - Prey**: 70
+- **Starting Energy - Predator**: 85
+
+---
+
+## 3. KILL/REMOVAL RULES
+
+### Starvation
+- **Trigger**: Agent energy <= 0
+- **Result**: Agent marked dead and removed
+- **Penalty**: DEATH_PENALTY = -10
+- **Timing**: Applied during cleanup phase after decay
+
+### Predation
+- **Trigger**: Predator executes EAT action on prey
+- **Consequence**: 
+  - Prey dies immediately (is_alive() = False)
+  - Prey cannot act in future timesteps
+  - Prevents double-kills (multiple predators eating same prey)
+- **Energy Transfer**: Predator gains (prey_energy × 0.25)
+  - Example: Prey with 50 energy → Predator gains 5 energy (10% efficiency)
+- **Reward**: Predator gets energy_transferred + 15.0 bonus (hunting success reward)
+
+---
+
+## 4. REPRODUCTION RULES
+
+### PREY Reproduction
+
+**Eligibility Criteria:**
+- Energy >= 55
+- reproduction_cooldown == 0 (not in cooldown from recent reproduction)
+- Population < global carrying capacity (0.015 × grid area)
+- Partner found: another prey with energy >= 55 and cooldown == 0
+
+**Probability:**
+- P(reproduce) = (energy_surplus / max_surplus) × 0.8
+  - energy_surplus = energy - 55
+  - max_surplus = 100 - 55
+  - Example: Prey with 80 energy → (80-60)/(100-60) × 0.8 = 0.4 = 40% chance
+  
+**Energy Cost:**
+- Parent 1 loses 25 energy
+- Parent 2 loses 25 energy
+- Offspring born with 50 energy
+
+**Cooldown & Mate-Locking:**
+- Both parents get reproduction_cooldown = 8
+- Prevents same agents from reproducing twice in quick succession
+- Mate-locking: Check mate.reproduction_cooldown > 0 to prevent double-mating
+
+**Reward:**
+- Both parents receive REPRODUCTION_REWARD = 15.0
+- Encourages Q-learning policy to pursue reproduction
+
+### PREDATOR Reproduction
+
+**Dynamic Capacity:**
+- Maximum predators allowed = prey_count × 0.5
+- Prevents predator overpopulation
+- If current_predators >= capacity, reproduction blocked
+
+**Eligibility Criteria:**
+- Energy >= 70
+- reproduction_cooldown == 0
+- Below dynamic capacity
+- Partner found: another predator with same criteria
+
+**Probability:**
+- P(reproduce) = (energy_surplus / max_surplus) × 0.7
+  - energy_surplus = energy - 70
+  - max_surplus = 100 - 70
+  - Example: Predator with 90 energy → (90-80)/(100-80) × 0.7 ≈ 0.35 = 35% chance
+  
+**Energy Cost:**
+- Parent 1 loses 35 energy
+- Parent 2 loses 35 energy
+- Offspring born with 45 energy
+
+**Cooldown & Mate-Locking:**
+- Both parents get reproduction_cooldown = 8
+- Mate-locking: Check mate.reproduction_cooldown > 0
+
+**Reward:**
+- Both parents receive REPRODUCTION_REWARD = 15.0
+
+---
+
+## 5. REWARD SYSTEM
+
+### Per-Action Rewards
+
+| Action | Prey | Predator | Trigger |
+|--------|------|----------|---------|
+| Eating Grass | energy_gained × 1.0 | N/A | Grass consumed |
+| Hunting | N/A | transfer × 1.0 + 0.25 | Prey killed |
+| Reproduction | 0.5 | 0.5 | Offspring born |
+| Step Penalty | -0.01 | -0.01 | Every step |
+| Death Penalty | -10 | -10 | Agent dies |
+
+---
+
+## 6. OBSERVATION SPACE (Agent View)
+
+Each agent observes 7 normalized dimensions [0, 1]:
+
+1. **Energy**: current_energy / 100
+2. **Target Distance** (Prey: predator, Predator: prey): normalized distance to nearest target
+3. **Target Direction X** (Prey: predator, Predator: prey): -1 (left) to +1 (right)
+4. **Target Direction Y** (Prey: predator, Predator: prey): -1 (up) to +1 (down)
+5. **Target Detected** (Prey: predator, Predator: prey): 1 if nearby, 0 otherwise
+6. **Can Reproduce**: 1 if eligible (energy >= threshold, cooldown=0, mate found), 0 otherwise
+7. **Padding**: Placeholder dimension (unused, always 0 or 1)
+
+State discretization: 2,160 unique states (5 × 3³ × 2³ combinations)
+
+---
+
+## 7. ACTION SPACE
+
+Each agent can perform 10 actions:
+
+| Index | Action | Effect |
+|-------|--------|--------|
+| 0-7 | Move (N, NE, E, SE, S, SW, W, NW) | Move to adjacent tile, costs 0.15 energy |
+| 8 | Eat | Consume grass (prey) or hunt (predator) |
+| 9 | Idle | Do nothing |
+
+---
+
+## 8. GRID CONFIGURATION
+
+- **Dimensions**: 150 × 150 = 22,500 tiles
+- **Grass Coverage**: ~80% of available space
+- **Empty Tiles**: ~20%
+
+---
+
+## 9. INITIAL POPULATION
+
+- **Prey**: 6 agents starting at 70 energy
+- **Predators**: 2 agents starting at 85 energy
+- **Placement**: Random on grid
+
+---
+
+## Summary
+
+This environment implements a biologically realistic ecosystem simulation with:
+✓ Proper trophic efficiency (10% predator energy transfer)
+✓ Sexual reproduction with mate-finding and cooldown mechanics
+✓ Dynamic predator carrying capacity
+✓ Probabilistic breeding based on energy surplus
+✓ Energy costs coupled to realistic metabolic rates
+✓ Clear reward signals for learnable behaviors (eating, drinking, reproducing)
+✓ Randomized action order to prevent agent coordination artifacts
+✓ Deterministic mate-locking to prevent double-mating
+✓ Comprehensive logging and reproducibility (seed control)

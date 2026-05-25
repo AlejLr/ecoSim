@@ -1,0 +1,209 @@
+{
+  "csv_path": "src/models/results\\protocol_alternating_39.csv",
+  "num_rows": 3500,
+  "columns": [
+    "cycle",
+    "phase",
+    "agent_type",
+    "episode",
+    "reward",
+    "steps",
+    "eval_reward",
+    "prey_population",
+    "predator_population",
+    "avg_prey_energy",
+    "avg_predator_energy",
+    "predation_events",
+    "eval_predation_events"
+  ],
+  "reward_mean": 2542.2648904761713,
+  "reward_median": 188.3300000000002,
+  "steps_mean": 272.66085714285714,
+  "cycles": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "per_cycle": {
+    "1": {
+      "rows": 700,
+      "reward_mean": 2406.517177380935,
+      "reward_median": 185.01500000000001,
+      "steps_mean": 264.1957142857143,
+      "predator_rows": 350,
+      "prey_rows": 350,
+      "predator_reward_mean": 441.37038333333146,
+      "prey_reward_mean": 4371.663971428538,
+      "pred_pop_mean": 21.134285714285713,
+      "pred_pop_max": 169,
+      "episodes_pred_gt2": 700,
+      "episodes_pred_gt1": 700,
+      "episodes_pred_eq0": 0,
+      "prey_pop_mean": 156.9557142857143,
+      "prey_pop_min": 0,
+      "predation_events_total": 14794
+    },
+    "2": {
+      "rows": 700,
+      "reward_mean": 2169.307364285698,
+      "reward_median": 158.9750000000001,
+      "steps_mean": 257.8142857142857,
+      "predator_rows": 350,
+      "prey_rows": 350,
+      "predator_reward_mean": 268.85209999999836,
+      "prey_reward_mean": 4069.7626285713977,
+      "pred_pop_mean": 33.58857142857143,
+      "pred_pop_max": 170,
+      "episodes_pred_gt2": 700,
+      "episodes_pred_gt1": 700,
+      "episodes_pred_eq0": 0,
+      "prey_pop_mean": 209.9142857142857,
+      "prey_pop_min": 0,
+      "predation_events_total": 23512
+    },
+    "3": {
+      "rows": 700,
+      "reward_mean": 1996.0178154761772,
+      "reward_median": 142.9683333333322,
+      "steps_mean": 248.95,
+      "predator_rows": 350,
+      "prey_rows": 350,
+      "predator_reward_mean": 64.67874523809498,
+      "prey_reward_mean": 3927.3568857142595,
+      "pred_pop_mean": 32.57714285714286,
+      "pred_pop_max": 170,
+      "episodes_pred_gt2": 699,
+      "episodes_pred_gt1": 699,
+      "episodes_pred_eq0": 0,
+      "prey_pop_mean": 171.61714285714285,
+      "prey_pop_min": 0,
+      "predation_events_total": 22804
+    },
+    "4": {
+      "rows": 700,
+      "reward_mean": 3731.1598214285395,
+      "reward_median": 644.5220833333351,
+      "steps_mean": 322.5842857142857,
+      "predator_rows": 350,
+      "prey_rows": 350,
+      "predator_reward_mean": 477.6620714285697,
+      "prey_reward_mean": 6984.657571428511,
+      "pred_pop_mean": 16.075714285714287,
+      "pred_pop_max": 169,
+      "episodes_pred_gt2": 700,
+      "episodes_pred_gt1": 700,
+      "episodes_pred_eq0": 0,
+      "prey_pop_mean": 265.8342857142857,
+      "prey_pop_min": 0,
+      "predation_events_total": 11253
+    },
+    "5": {
+      "rows": 700,
+      "reward_mean": 2408.3222738095055,
+      "reward_median": 121.77666666666504,
+      "steps_mean": 269.76,
+      "predator_rows": 350,
+      "prey_rows": 350,
+      "predator_reward_mean": 104.8753190476185,
+      "prey_reward_mean": 4711.769228571393,
+      "pred_pop_mean": 18.155714285714286,
+      "pred_pop_max": 169,
+      "episodes_pred_gt2": 700,
+      "episodes_pred_gt1": 700,
+      "episodes_pred_eq0": 0,
+      "prey_pop_mean": 151.20714285714286,
+      "prey_pop_min": 0,
+      "predation_events_total": 12709
+    }
+  },
+  "per_cycle_trends": {
+    "1": {
+      "slope": 2.433427014681156,
+      "r": 0.21334165489209203,
+      "p": 5.736543352194905e-05,
+      "n": 350
+    },
+    "2": {
+      "slope": 0.639994040534438,
+      "r": 0.08848862087040837,
+      "p": 0.09837320105496719,
+      "n": 350
+    },
+    "3": {
+      "slope": 0.1301025922077485,
+      "r": 0.06158799024012177,
+      "p": 0.25048374893771846,
+      "n": 350
+    },
+    "4": {
+      "slope": 3.2163705191762384,
+      "r": 0.2622398721403742,
+      "p": 6.495912632200122e-07,
+      "n": 350
+    },
+    "5": {
+      "slope": 0.3212877418241271,
+      "r": 0.0730764938083767,
+      "p": 0.1725456253774623,
+      "n": 350
+    }
+  },
+  "episodes_pred_gt2_total": 3499,
+  "episodes_pred_gt1_total": 3499,
+  "episodes_pred_eq0_total": 0,
+  "predation_events_total": 85072,
+  "pred_pickle_count": 5,
+  "prey_pickle_count": 5,
+  "q_stats": {
+    "predator": {
+      "trained_predator_39_protocol2_cycle1.pkl": {
+        "found": false
+      },
+      "trained_predator_39_protocol2_cycle2.pkl": {
+        "found": false
+      },
+      "trained_predator_39_protocol2_cycle3.pkl": {
+        "found": false
+      },
+      "trained_predator_39_protocol2_cycle4.pkl": {
+        "found": false
+      },
+      "trained_predator_39_protocol2_cycle5.pkl": {
+        "found": false
+      }
+    },
+    "prey": {
+      "trained_prey_39_protocol2_cycle1.pkl": {
+        "found": false
+      },
+      "trained_prey_39_protocol2_cycle2.pkl": {
+        "found": false
+      },
+      "trained_prey_39_protocol2_cycle3.pkl": {
+        "found": false
+      },
+      "trained_prey_39_protocol2_cycle4.pkl": {
+        "found": false
+      },
+      "trained_prey_39_protocol2_cycle5.pkl": {
+        "found": false
+      }
+    }
+  },
+  "predator_scores": {
+    "trained_predator_39_protocol2_cycle1.pkl": -999,
+    "trained_predator_39_protocol2_cycle2.pkl": -999,
+    "trained_predator_39_protocol2_cycle3.pkl": -999,
+    "trained_predator_39_protocol2_cycle4.pkl": -999,
+    "trained_predator_39_protocol2_cycle5.pkl": -999
+  },
+  "prey_scores": {
+    "trained_prey_39_protocol2_cycle1.pkl": -999,
+    "trained_prey_39_protocol2_cycle2.pkl": -999,
+    "trained_prey_39_protocol2_cycle3.pkl": -999,
+    "trained_prey_39_protocol2_cycle4.pkl": -999,
+    "trained_prey_39_protocol2_cycle5.pkl": -999
+  }
+}

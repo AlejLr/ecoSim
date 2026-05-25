@@ -1,0 +1,2 @@
+run_index,run_name,prey_model_path,predator_model_path,alpha,beta,gamma,delta,prey_rmse,predator_rmse
+0,baseline_pair,C:\Users\alejl\University\Thesis\ecoSim\src\models\trained_prey_35_protocol1_1v1.pkl,C:\Users\alejl\University\Thesis\ecoSim\src\models\trained_predator_35_protocol1_1v1.pkl,0.0,0.0,3.6407766990291177e-05,-0.0002548543689320385,0.0,0.6959527566465924

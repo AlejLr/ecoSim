@@ -29,7 +29,7 @@ class QLearningAgent:
     Action space: 10 actions (8 moves + eat + idle)
     """
     
-    def __init__(self, agent_id=0, num_actions=10, num_states=2160):
+    def __init__(self, agent_id=0, num_actions=10, num_states=2160, epsilon_start=None, epsilon_decay=None, epsilon_min=None):
         self.agent_id = agent_id
         self.num_actions = num_actions
         self.num_states = num_states
@@ -38,7 +38,9 @@ class QLearningAgent:
         self.q_table = defaultdict(lambda: np.zeros(num_actions))
         
         # Exploration parameters
-        self.epsilon = EPSILON_START
+        self.epsilon = EPSILON_START if epsilon_start is None else float(epsilon_start)
+        self.epsilon_decay = EPSILON_DECAY if epsilon_decay is None else float(epsilon_decay)
+        self.epsilon_min = EPSILON_MIN if epsilon_min is None else float(epsilon_min)
         self.learning_rate = LEARNING_RATE
         self.discount_factor = DISCOUNT_FACTOR
         
@@ -154,7 +156,16 @@ class QLearningAgent:
     
     def decay_epsilon(self):
         """Decay exploration rate"""
-        self.epsilon = max(EPSILON_MIN, self.epsilon * EPSILON_DECAY)
+        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
+
+    def set_exploration(self, epsilon=None, epsilon_decay=None, epsilon_min=None):
+        """Override exploration schedule parameters for a specific training protocol."""
+        if epsilon is not None:
+            self.epsilon = float(epsilon)
+        if epsilon_decay is not None:
+            self.epsilon_decay = float(epsilon_decay)
+        if epsilon_min is not None:
+            self.epsilon_min = float(epsilon_min)
     
     def save_model(self, filepath):
         """Save Q-table and metadata to file (convert defaultdict to dict for pickling)"""

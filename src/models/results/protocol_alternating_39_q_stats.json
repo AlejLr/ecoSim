@@ -1,0 +1,116 @@
+{
+  "predator": {
+    "trained_predator_39_protocol2_cycle1.pkl": {
+      "found": true,
+      "shape": [
+        172,
+        10
+      ],
+      "q_mean": 20.91129891734343,
+      "q_max": 242.2203645726356,
+      "q_std": 44.22539055280648,
+      "pos_frac": 0.7308139534883721
+    },
+    "trained_predator_39_protocol2_cycle2.pkl": {
+      "found": true,
+      "shape": [
+        176,
+        10
+      ],
+      "q_mean": 32.46894770679374,
+      "q_max": 174.13100522205238,
+      "q_std": 48.84980460654517,
+      "pos_frac": 0.7488636363636364
+    },
+    "trained_predator_39_protocol2_cycle3.pkl": {
+      "found": true,
+      "shape": [
+        181,
+        10
+      ],
+      "q_mean": 35.01419190869717,
+      "q_max": 145.68621581244167,
+      "q_std": 42.6757442055431,
+      "pos_frac": 0.7569060773480663
+    },
+    "trained_predator_39_protocol2_cycle4.pkl": {
+      "found": true,
+      "shape": [
+        182,
+        10
+      ],
+      "q_mean": 41.98541737422835,
+      "q_max": 229.6130733935328,
+      "q_std": 53.31481431221771,
+      "pos_frac": 0.7879120879120879
+    },
+    "trained_predator_39_protocol2_cycle5.pkl": {
+      "found": true,
+      "shape": [
+        182,
+        10
+      ],
+      "q_mean": 44.55594679936578,
+      "q_max": 183.3685393154713,
+      "q_std": 50.824919888679894,
+      "pos_frac": 0.7983516483516484
+    }
+  },
+  "prey": {
+    "trained_prey_39_protocol2_cycle1.pkl": {
+      "found": true,
+      "shape": [
+        62,
+        10
+      ],
+      "q_mean": 90.24078507011919,
+      "q_max": 708.3576666556821,
+      "q_std": 170.81258023680704,
+      "pos_frac": 0.3919354838709677
+    },
+    "trained_prey_39_protocol2_cycle2.pkl": {
+      "found": true,
+      "shape": [
+        73,
+        10
+      ],
+      "q_mean": 100.93281418490771,
+      "q_max": 715.9445018349875,
+      "q_std": 175.24008233125218,
+      "pos_frac": 0.4136986301369863
+    },
+    "trained_prey_39_protocol2_cycle3.pkl": {
+      "found": true,
+      "shape": [
+        80,
+        10
+      ],
+      "q_mean": 108.85560557786431,
+      "q_max": 708.2682668970303,
+      "q_std": 184.4769407220152,
+      "pos_frac": 0.4425
+    },
+    "trained_prey_39_protocol2_cycle4.pkl": {
+      "found": true,
+      "shape": [
+        86,
+        10
+      ],
+      "q_mean": 116.94494777914109,
+      "q_max": 737.3921550532525,
+      "q_std": 200.8419176313122,
+      "pos_frac": 0.4418604651162791
+    },
+    "trained_prey_39_protocol2_cycle5.pkl": {
+      "found": true,
+      "shape": [
+        87,
+        10
+      ],
+      "q_mean": 122.15046243459356,
+      "q_max": 717.8625621011801,
+      "q_std": 200.82314430020466,
+      "pos_frac": 0.4528735632183908
+    }
+  }
+}

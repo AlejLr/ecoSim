@@ -104,6 +104,15 @@ PREY_PREDATION_SUSTAINABILITY_THRESHOLD = 75  # Below this prey count, hunting r
 #        + rho_repr * I[e == reproduce]
 #        + rho_prey_detect * I[d_prey]
 
+# Coexistence shaping: reward both species for staying alive together and near
+# a healthy prey:predator balance. The values are intentionally small so they
+# nudge learning without overwhelming the base task reward.
+COEXISTENCE_STEP_BONUS = 0.015        # Per-step bonus when both species are viable
+COEXISTENCE_EXTINCTION_PENALTY = -3.0 # Applied when either species goes extinct
+COEXISTENCE_PREY_FLOOR = 4            # Healthy prey floor for the bonus curve
+COEXISTENCE_PREDATOR_FLOOR = 2        # Healthy predator floor for the bonus curve
+COEXISTENCE_TARGET_PREY_TO_PREDATOR_RATIO = 2.0  # Rough target balance
+
 # REPRODUCTION
 REPRODUCTION_ENABLED = True     # Enable prey reproduction
 PREY_REPRODUCTION_THRESHOLD = 55    # Min energy needed to reproduce (lowered to enable pop growth)

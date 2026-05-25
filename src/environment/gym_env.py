@@ -21,7 +21,7 @@ class EcoSimEnv(gym.Env):
     Reward: energy_gained - step_penalty, or death_penalty on death
     """
     
-    def __init__(self, agent_id=0, num_prey=4, num_predators=2, agent_type="PREDATOR", map_path=None, memory=False, opponent_agent=None, opponent_type=None, same_species_agent=None, same_species_type=None, frozen_policy_epsilon=0.01):
+    def __init__(self, agent_id=0, num_prey=4, num_predators=2, agent_type="PREDATOR", map_path=None, memory=False, opponent_agent=None, opponent_type=None, same_species_agent=None, same_species_type=None, frozen_policy_epsilon=0.01, grid_size=None):
         super(EcoSimEnv, self).__init__()
         
         self.agent_id = agent_id
@@ -35,6 +35,7 @@ class EcoSimEnv(gym.Env):
         self.same_species_agent = same_species_agent  # Frozen policy for learner species background agents
         self.same_species_type = same_species_type.upper() if same_species_type else None
         self.frozen_policy_epsilon = float(frozen_policy_epsilon)
+        self.grid_size = tuple(grid_size) if grid_size is not None else GRID_SUBENV
         
         # Action space: 8 moves + eat + idle
         self.action_space = spaces.Discrete(10)
@@ -136,7 +137,7 @@ class EcoSimEnv(gym.Env):
 
         # Tiny exploration for frozen policies to avoid fully deterministic swarms.
         if self.frozen_policy_epsilon > 0 and random.random() < self.frozen_policy_epsilon:
-            return random.randint(0, 10)
+            return random.randint(0, 9)
 
         obs = None
         state = None
@@ -214,7 +215,7 @@ class EcoSimEnv(gym.Env):
             return action
         else:
             # Fallback to random action
-            return random.randint(0, 10)
+            return random.randint(0, 9)
         
     def reset(self, seed=None):
         """Reset environment and return initial observation
@@ -233,7 +234,7 @@ class EcoSimEnv(gym.Env):
             np.random.seed(seed)
             random.seed(seed)
         # Create environment
-        self.env = grid_env(GRID_SUBENV[0], GRID_SUBENV[1])
+        self.env = grid_env(self.grid_size[0], self.grid_size[1])
         
         if self.map_path:
             self.env.use_test(self.map_path)

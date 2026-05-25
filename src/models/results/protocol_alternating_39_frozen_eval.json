@@ -1,0 +1,17 @@
+{
+  "predator_eval": {
+    "avg_reward": 46.02000000000048,
+    "avg_steps": 500.0,
+    "episodes": 100
+  },
+  "prey_eval": {
+    "avg_reward": 14140.87999999989,
+    "avg_steps": 356.0,
+    "episodes": 100
+  },
+  "timing": {
+    "pred_eval_s": 907.5044400691986,
+    "prey_eval_s": 704.1248798370361,
+    "total_s": 1611.6293199062347
+  }
+}
