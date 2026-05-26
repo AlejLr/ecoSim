@@ -1,7 +1,6 @@
 from random import choice
 
 from config.config import *
-from models.coexistence_metrics import coexistence_reward
 
 
 def reward_for_agent(
@@ -10,25 +9,17 @@ def reward_for_agent(
     event="step",
     energy_gained=0.0,
     detected=False,
-    current_prey_count=None,
-    current_predator_count=None,
 ):
     """Explicit reward equation for PREY and PREDATOR agents.
 
     event can be one of: step, eat, reproduce.
+    STEP_PENALTY is only applied for event="step" to avoid double-counting.
     """
     reward = 0.0
     agent_kind = agent_type.upper()
 
-    if event in {"step", "eat", "reproduce"}:
+    if event == "step":
         reward += STEP_PENALTY
-
-    if (
-        event == "step"
-        and current_prey_count is not None
-        and current_predator_count is not None
-    ):
-        reward += coexistence_reward(current_prey_count, current_predator_count)
 
     if agent_kind == "PREY":
         if event == "eat":
@@ -42,8 +33,8 @@ def reward_for_agent(
     elif agent_kind == "PREDATOR":
         if event == "eat":
             reward += (energy_gained * 0.25) * ENERGY_REWARD_SCALE
-            if energy_gained > 0 and current_prey_count is not None:
-                reward += HUNTING_SUCCESS_BONUS * min(1.0, current_prey_count / PREY_PREDATION_SUSTAINABILITY_THRESHOLD)
+            if energy_gained > 0:
+                reward += HUNTING_SUCCESS_BONUS
         elif event == "reproduce":
             reward += REPRODUCTION_REWARD
 
@@ -100,18 +91,16 @@ class Agent():
             pass
 
         obs = self.get_observation(environment)
-        # Use the pad slot for PREY to carry predator detection (index 6).
-        # Keep predators using obs[4] (prey detected) to preserve compatibility.
+        # PREY: obs[5] = predator_detected (conditional encoding — switches obs[1-3] semantics).
+        # PREDATOR: obs[4] = prey_detected.
         if self.agent_type == "PREY":
-            detected = obs[6] > 0
+            detected = obs[5] > 0
         else:
             detected = obs[4] > 0
         immediate_reward += reward_for_agent(
             self.agent_type,
             event="step",
             detected=detected,
-            current_prey_count=sum(1 for a in environment.agents if a.is_alive() and a.agent_type == "PREY"),
-            current_predator_count=sum(1 for a in environment.agents if a.is_alive() and a.agent_type == "PREDATOR"),
         )
         
         return immediate_reward
@@ -144,59 +133,34 @@ class Agent():
         """Get all agents nearby within vision radius"""
         return environment.get_agents_nearby(self.position, self.vision_radius)
     
-    def _can_reproduce(self, environment):
-        """Check if reproduction is currently possible (no cooldown, energy sufficient, mate nearby)
-        
-        Returns 0 or 1 for observation inclusion.
-        """
-        if self.reproduction_cooldown > 0:
-            return 0
-        
-        # Check energy threshold
-        if self.agent_type == "PREY":
-            from config.config import PREY_REPRODUCTION_THRESHOLD
-            threshold = PREY_REPRODUCTION_THRESHOLD
-        else:
-            from config.config import PREDATOR_REPRODUCTION_THRESHOLD
-            threshold = PREDATOR_REPRODUCTION_THRESHOLD
-        
-        if self.energy < threshold:
-            return 0
-        
-        # Check for nearby mate (within search radius)
-        from config.config import PREY_REPRODUCTION_SEARCH_RADIUS, PREDATOR_REPRODUCTION_SEARCH_RADIUS
-        search_radius = PREY_REPRODUCTION_SEARCH_RADIUS if self.agent_type == "PREY" else PREDATOR_REPRODUCTION_SEARCH_RADIUS
-        
-        mate = self._find_nearby_mate(environment.agents, search_radius=search_radius)
-        return 1 if mate is not None else 0
-    
     def get_observation(self, environment):
-        """Build observation state for Q-learning: normalized [0,1] values
-        
-        For PREY (7 dims): [energy, food_distance, food_dir_x, food_dir_y, food_detected, can_reproduce, pad]
-                          Track food for eating, food is the priority for energy gain
-        
-        For PREDATOR (7 dims): [energy, prey_distance, prey_dir_x, prey_dir_y, prey_detected, can_reproduce, pad]
-                              Track and hunt prey
-        
-        Returns numpy array with 7 floats.
+        """Build 6-dim observation for Q-learning (normalized [0,1]).
+
+        PREY (6 dims):
+          [energy, primary_dist, primary_dir_x, primary_dir_y, food_detected, predator_detected]
+          Conditional encoding: when predator_detected=1, obs[1-3] point toward the nearest
+          predator so prey can learn to flee; otherwise they point toward nearest food.
+          obs[4] is always food-based for eat-action masking.
+
+        PREDATOR (6 dims):
+          [energy, prey_dist, prey_dir_x, prey_dir_y, prey_detected, prey_density]
+          prey_density=1 when 2+ prey are within vision radius.
+
+        State space: 5×3×3×3×2×2 = 540 states.
         """
         import numpy as np
-        
-        # Agent's own state (normalized)
+
         energy_norm = self.energy / MAX_AGENT_ENERGY
-        
+
         if self.agent_type == "PREY":
-            # PREY observation: find nearest FOOD (grass tile)
+            # --- Food scan (always needed for obs[4] and as default obs[1-3]) ---
             food_distance_norm = 1.0
             food_dir_x = 0.5
             food_dir_y = 0.5
             food_detected = 0
-            
-            # Search for nearest grass within vision radius
             closest_grass = None
-            closest_dist = float('inf')
-            
+            closest_food_dist = float('inf')
+
             for dx in range(-VISION_RADIUS, VISION_RADIUS + 1):
                 for dy in range(-VISION_RADIUS, VISION_RADIUS + 1):
                     check_x = self.position[0] + dx
@@ -205,89 +169,81 @@ class Agent():
                         tile = environment.tiles[check_x][check_y]
                         if tile.tile_type == "grass" and tile.has_energy:
                             dist = abs(dx) + abs(dy)
-                            if dist < closest_dist:
-                                closest_dist = dist
+                            if dist < closest_food_dist:
+                                closest_food_dist = dist
                                 closest_grass = (dx, dy)
-            
+
             if closest_grass is not None:
                 dx, dy = closest_grass
-                distance = (abs(dx) + abs(dy)) / (2 * VISION_RADIUS)
-                food_distance_norm = min(1.0, distance)
+                food_distance_norm = min(1.0, (abs(dx) + abs(dy)) / (2 * VISION_RADIUS))
                 food_dir_x = np.clip((dx / VISION_RADIUS + 1) / 2, 0, 1)
                 food_dir_y = np.clip((dy / VISION_RADIUS + 1) / 2, 0, 1)
-                food_detected = 1 if closest_dist <= ACTION_RADIUS else 0
-            
-            can_reproduce = self._can_reproduce(environment)
-            # Repurpose pad to indicate nearby predator detection for PREY (0/1)
+                food_detected = 1 if closest_food_dist <= ACTION_RADIUS else 0
+
+            # --- Predator scan ---
             nearby_agents = self.get_nearby_agents(environment)
             predators = [a for a in nearby_agents if a.agent_type == "PREDATOR"]
             predator_detected = 0
+            primary_dist = food_distance_norm
+            primary_dir_x = food_dir_x
+            primary_dir_y = food_dir_y
+
             if predators:
-                closest_pred = min(predators, key=lambda a: abs(a.position[0] - self.position[0]) + abs(a.position[1] - self.position[1]))
+                closest_pred = min(
+                    predators,
+                    key=lambda a: abs(a.position[0] - self.position[0]) + abs(a.position[1] - self.position[1]),
+                )
                 pdx = closest_pred.position[0] - self.position[0]
                 pdy = closest_pred.position[1] - self.position[1]
-                pdistance = (abs(pdx) + abs(pdy)) / (2 * self.vision_radius)
-                predator_detected = 1 if pdistance < 0.5 else 0
-            pad = predator_detected
-            return np.array([energy_norm, food_distance_norm, 
-                            food_dir_x, food_dir_y, food_detected, can_reproduce, pad], dtype=np.float32)
-            
+                predator_detected = 1
+                # Switch obs[1-3] to point toward predator so prey can learn to flee
+                primary_dist = min(1.0, (abs(pdx) + abs(pdy)) / (2 * self.vision_radius))
+                primary_dir_x = np.clip((pdx / self.vision_radius + 1) / 2, 0, 1)
+                primary_dir_y = np.clip((pdy / self.vision_radius + 1) / 2, 0, 1)
+
+            return np.array(
+                [energy_norm, primary_dist, primary_dir_x, primary_dir_y, food_detected, predator_detected],
+                dtype=np.float32,
+            )
+
         else:  # PREDATOR
-            # PREDATOR observation: find nearest prey
             target_distance_norm = 1.0
             direction_x_norm = 0.5
             direction_y_norm = 0.5
             target_detected = 0
-            
+
             nearby_agents = self.get_nearby_agents(environment)
             prey_list = [a for a in nearby_agents if a.agent_type == "PREY"]
-            
+
             if prey_list:
-                # Find closest prey
-                closest = min(prey_list, key=lambda a:
-                    abs(a.position[0] - self.position[0]) + abs(a.position[1] - self.position[1]))
-                
+                closest = min(
+                    prey_list,
+                    key=lambda a: abs(a.position[0] - self.position[0]) + abs(a.position[1] - self.position[1]),
+                )
                 dx = closest.position[0] - self.position[0]
                 dy = closest.position[1] - self.position[1]
                 distance = (abs(dx) + abs(dy)) / (2 * self.vision_radius)
-                
                 target_distance_norm = min(1.0, distance)
                 direction_x_norm = np.clip((dx / self.vision_radius + 1) / 2, 0, 1)
                 direction_y_norm = np.clip((dy / self.vision_radius + 1) / 2, 0, 1)
-                target_detected = 1 if distance < 0.5 else 0
-            
-            can_reproduce = self._can_reproduce(environment)
-            pad = 0  # Placeholder for consistent 7-dim state space
-            return np.array([energy_norm, target_distance_norm, 
-                            direction_x_norm, direction_y_norm, target_detected, can_reproduce, pad], dtype=np.float32)
+                target_detected = 1 if (abs(dx) + abs(dy)) <= ACTION_RADIUS else 0
+
+            # Binary prey density: 1 if 2+ prey visible, encourages staying in rich areas
+            prey_density = 1 if len(prey_list) >= 2 else 0
+            return np.array(
+                [energy_norm, target_distance_norm, direction_x_norm, direction_y_norm, target_detected, prey_density],
+                dtype=np.float32,
+            )
         
     def is_alive(self):
         """Agent dies when energy reaches 0"""
         return self.energy > 0
     
-    def die(self, environment, death_penalty=None):
-        """Handle agent death and cleanup
-        
-        Args:
-            environment: The environment object
-            death_penalty: Optional death penalty reward to apply to Q-learning
-                          If None, uses DEATH_PENALTY from config
-        """
-        from config.config import DEATH_PENALTY
-        
+    def die(self, environment):
+        """Handle agent death and cleanup."""
         # Mark agent as dead (prevents zombie agents from is_alive() checks)
         self.energy = 0
-        
-        # Apply death penalty to Q-learning table if available
-        if death_penalty is None:
-            death_penalty = DEATH_PENALTY
-        
-        if self.q_learning is not None:
-            # Create a terminal state (all zeros) matching 7-dim observation space
-            # Terminal state must be 7-element tuple (energy, target_dist, dir_x, dir_y, detected, can_reproduce, pad)
-            terminal_state = (0, 0, 0, 0, 0, 0, 0)
-            self.q_learning.apply_death_penalty(terminal_state, death_penalty)
-        
+
         if self in environment.agents:
             environment.agents.remove(self)
         
@@ -357,9 +313,14 @@ class Prey(Agent):
         if not REPRODUCTION_ENABLED or self.reproduction_cooldown > 0:
             return None
 
+        # Soft logistic cap: probability decreases smoothly as population approaches capacity.
+        # Hard block only triggers at or above capacity to prevent over-shooting.
+        density_factor = 1.0
         if carrying_capacity is not None and current_prey_count is not None:
-            if current_prey_count >= carrying_capacity:
+            density = current_prey_count / carrying_capacity
+            if density >= 1.0:
                 return None
+            density_factor = 1.0 - density
 
         if all_agents is None:
             all_agents = []
@@ -372,11 +333,11 @@ class Prey(Agent):
         if self.energy < PREY_REPRODUCTION_THRESHOLD or mate.energy < PREY_REPRODUCTION_THRESHOLD:
             return None
 
-        # Probabilistic reproduction: higher chance with more energy surplus
+        # Probabilistic reproduction: energy surplus × density suppression
         energy_surplus = self.energy - PREY_REPRODUCTION_THRESHOLD
         max_surplus = MAX_AGENT_ENERGY - PREY_REPRODUCTION_THRESHOLD
         if max_surplus > 0:
-            reproduction_prob = min(1.0, (energy_surplus / max_surplus) * PREY_REPRODUCTION_PROB_SCALE)
+            reproduction_prob = min(1.0, (energy_surplus / max_surplus) * PREY_REPRODUCTION_PROB_SCALE * density_factor)
             if random.random() > reproduction_prob:
                 return None
 
@@ -395,9 +356,10 @@ class Prey(Agent):
 
         new_pos = random.choice(free_positions)
 
-        # Both parents pay cost and enter cooldown (partner locking)
-        self.energy -= PREY_REPRODUCTION_ENERGY_COST
-        mate.energy -= PREY_REPRODUCTION_ENERGY_COST
+        # Both parents share the cost equally and enter cooldown (partner locking)
+        half_cost = PREY_REPRODUCTION_ENERGY_COST / 2
+        self.energy -= half_cost
+        mate.energy -= half_cost
         self.reproduction_cooldown = PREY_REPRODUCTION_COOLDOWN
         mate.reproduction_cooldown = PREY_REPRODUCTION_COOLDOWN
 
@@ -451,6 +413,8 @@ class Predator(Agent):
                             prey = prey_list[0]
                             target_position = prey.position
                             break
+                if target_position is not None:
+                    break
         
         if target_position is None:
             # No prey found within ACTION_RADIUS
@@ -496,7 +460,7 @@ class Predator(Agent):
         if VERBOSE:
             print(f"[PREDATION SUCCESS -> EXECUTING] Predator {self.agent_id} will eat Prey {prey.agent_id} at {prey.position} (energy={energy_gained}); prey_count_before={pre_count}")
 
-        prey.die(environment, death_penalty=DEATH_PENALTY)  # Remove prey immediately (prevents double-kills)
+        prey.die(environment)
 
         # Predator gains energy with 25% efficiency (realistic energy transfer)
         predation_energy_transfer = energy_gained * 0.25
@@ -521,12 +485,10 @@ class Predator(Agent):
         if VERBOSE:
             print(f"[PREDATION DONE] Predator {self.agent_id} ate Prey {prey.agent_id}; energy_gained={energy_gained} -> predator_energy={self.energy}; prey_count_after={post_count}")
 
-        # Return reward based on ACTUAL energy transfer (not theoretical), scaled with sustainability
         return reward_for_agent(
             self.agent_type,
             event="eat",
             energy_gained=energy_gained,
-            current_prey_count=post_count,
         )
 
     def reproduce(self, environment, new_agent_id, current_prey_count=None, current_predator_count=None, all_agents=None):
@@ -591,9 +553,10 @@ class Predator(Agent):
 
         new_pos = random.choice(free_positions)
 
-        # Both parents pay energy cost and enter cooldown (partner locking)
-        self.energy -= PREDATOR_REPRODUCTION_ENERGY_COST
-        mate.energy -= PREDATOR_REPRODUCTION_ENERGY_COST
+        # Both parents share the cost equally and enter cooldown (partner locking)
+        half_cost = PREDATOR_REPRODUCTION_ENERGY_COST / 2
+        self.energy -= half_cost
+        mate.energy -= half_cost
         self.reproduction_cooldown = PREDATOR_REPRODUCTION_COOLDOWN
         mate.reproduction_cooldown = PREDATOR_REPRODUCTION_COOLDOWN
 

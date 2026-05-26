@@ -18,6 +18,7 @@ from config.config import SEED
 from agents.agent import Prey, Predator
 from environment.gym_env import EcoSimEnv
 from models.Q_learning import QLearningAgent
+from models.coexistence_metrics import coexistence_score
 
 # Evaluation settings
 cycle_ids = [1, 2]
@@ -117,6 +118,8 @@ def build_step_snapshot(env, step_index: int, reward: float, cumulative_reward: 
 
     main_agent = env.agent
     main_observation = main_agent.get_observation(env.env)
+    system_coexistence = coexistence_score(len(prey_agents), len(predator_agents))
+    system_extinct = int(len(prey_agents) == 0 or len(predator_agents) == 0)
 
     snapshot = {
         'step': step_index,
@@ -129,6 +132,8 @@ def build_step_snapshot(env, step_index: int, reward: float, cumulative_reward: 
         'prey_population': len(prey_agents),
         'predator_population': len(predator_agents),
         'total_alive': len(alive_agents),
+        'system_coexistence_score': system_coexistence,
+        'system_extinct': system_extinct,
         'avg_prey_energy': mean_or_zero(agent.energy for agent in prey_agents),
         'avg_predator_energy': mean_or_zero(agent.energy for agent in predator_agents),
         'min_prey_energy': float(min((agent.energy for agent in prey_agents), default=0.0)),
@@ -253,6 +258,11 @@ def run_long_episode_experiment(prey_model_path, predator_model_path, main_agent
         'final_reward': float(results_df['cumulative_reward'].iloc[-1]) if not results_df.empty else 0.0,
         'final_prey_population': int(results_df['prey_population'].iloc[-1]) if not results_df.empty else 0,
         'final_predator_population': int(results_df['predator_population'].iloc[-1]) if not results_df.empty else 0,
+        'final_system_coexistence_score': float(results_df['system_coexistence_score'].iloc[-1]) if not results_df.empty else 0.0,
+        'mean_system_coexistence_score': float(results_df['system_coexistence_score'].mean()) if not results_df.empty else 0.0,
+        'min_system_coexistence_score': float(results_df['system_coexistence_score'].min()) if not results_df.empty else 0.0,
+        'system_survival_fraction': float((results_df['system_extinct'] == 0).mean()) if not results_df.empty else 0.0,
+        'system_extinction_step': int(results_df.loc[results_df['system_extinct'] == 1, 'step'].iloc[0]) if not results_df.empty and (results_df['system_extinct'] == 1).any() else 0,
         'cumulative_predation_events': int(results_df['cumulative_predation_events'].iloc[-1]) if not results_df.empty else 0,
         'cumulative_prey_births': int(results_df['cumulative_prey_births'].iloc[-1]) if not results_df.empty else 0,
         'cumulative_predator_births': int(results_df['cumulative_predator_births'].iloc[-1]) if not results_df.empty else 0,
@@ -272,7 +282,7 @@ if __name__ == '__main__':
                 print('Running', run_name)
                 df, summary = run_long_episode_experiment(prey_model, predator_model, agent_type, run_name, seed_offset)
                 all_summaries.append(summary)
-                print(f"Saved {summary['csv_path']} | steps={summary['steps_ran']} | final prey={summary['final_prey_population']} | final predator={summary['final_predator_population']}")
+                print(f"Saved {summary['csv_path']} | steps={summary['steps_ran']} | mean system score={summary['mean_system_coexistence_score']:.4f} | final prey={summary['final_prey_population']} | final predator={summary['final_predator_population']}")
 
     summary_df = pd.DataFrame(all_summaries)
     summary_csv = results_dir / 'run40_summary.csv'

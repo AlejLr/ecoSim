@@ -7,29 +7,28 @@ from config.config import *
 
 class QLearningAgent:
     """Tabular Q-Learning agent with discretized state space
-    
-    Both PREY and PREDATOR agents use identical 7-dimensional observations:
-    [energy, target_distance, target_dir_x, target_dir_y, target_detected, can_reproduce, pad]
-    
-    PREY: target = nearest predator (focus on survival)
-    PREDATOR: target = nearest prey (focus on hunting)
-    can_reproduce: binary flag indicating if reproduction is currently possible
-    pad: placeholder for consistent state space dimensionality
-    
+
+    PREY (6-dim, conditional encoding):
+      [energy, primary_dist, primary_dir_x, primary_dir_y, food_detected, predator_detected]
+      When predator_detected=1, obs[1-3] point toward predator; otherwise toward food.
+
+    PREDATOR (6-dim):
+      [energy, prey_dist, prey_dir_x, prey_dir_y, prey_detected, prey_density]
+      prey_density=1 if 2+ prey are within vision radius.
+
     Discretization:
-    - energy: 5 levels [0, 0.2, 0.4, 0.6, 0.8, 1.0]
-    - target_distance: 3 levels [close, medium, far]
-    - target_dir_x: 3 levels [left, center, right]
-    - target_dir_y: 3 levels [up, center, down]
-    - target_detected: 2 levels [not detected, detected]
-    - can_reproduce: 2 levels [no, yes]
-    - pad: 2 levels [0, 1] (unused)
-    
-    Total state space: 5 × 3 × 3 × 3 × 2 × 2 × 2 = 2,160 states
+    - energy:          5 levels  [0, 0.2, 0.4, 0.6, 0.8, 1.0]
+    - primary_dist:    3 levels  [close, medium, far]
+    - primary_dir_x:   3 levels  [left, center, right]
+    - primary_dir_y:   3 levels  [up, center, down]
+    - target_detected: 2 levels  [not detected, detected]   (obs[4])
+    - context:         2 levels  [0, 1]                     (obs[5])
+
+    Total state space: 5 × 3 × 3 × 3 × 2 × 2 = 540 states
     Action space: 10 actions (8 moves + eat + idle)
     """
-    
-    def __init__(self, agent_id=0, num_actions=10, num_states=2160, epsilon_start=None, epsilon_decay=None, epsilon_min=None):
+
+    def __init__(self, agent_id=0, num_actions=10, num_states=540, epsilon_start=None, epsilon_decay=None, epsilon_min=None):
         self.agent_id = agent_id
         self.num_actions = num_actions
         self.num_states = num_states
@@ -49,23 +48,19 @@ class QLearningAgent:
         self.episode_steps = []
     
     def discretize_state(self, obs):
-        """Convert continuous observation to discrete state
-        
-        obs: numpy array [energy, target_distance, target_dir_x, target_dir_y, target_detected, can_reproduce, pad]
-        returns: state tuple for Q-table indexing
-        
-        State space: 5 × 3 × 3 × 3 × 2 × 2 × 2 = 2,160 states
+        """Convert 6-dim continuous observation to discrete state tuple.
+
+        obs: [energy, primary_dist, primary_dir_x, primary_dir_y, target_detected, context]
+        State space: 5 × 3 × 3 × 3 × 2 × 2 = 1,080 states
         """
-        # Ensure obs is normalized [0, 1]
         energy = int(np.clip(obs[0] * 5, 0, 4))
-        target_distance = int(np.clip(obs[1] * 3, 0, 2))
+        primary_distance = int(np.clip(obs[1] * 3, 0, 2))
         direction_x = int(np.clip(obs[2] * 3, 0, 2))
         direction_y = int(np.clip(obs[3] * 3, 0, 2))
         target_detected = int(np.clip(obs[4], 0, 1))
-        can_reproduce = int(np.clip(obs[5], 0, 1))
-        pad = int(np.clip(obs[6], 0, 1))
-        
-        return (energy, target_distance, direction_x, direction_y, target_detected, can_reproduce, pad)
+        context = int(np.clip(obs[5], 0, 1))
+
+        return (energy, primary_distance, direction_x, direction_y, target_detected, context)
 
     def _state_distance(self, state_a, state_b):
         """Compute a cheap distance between two discrete state tuples."""
@@ -136,23 +131,6 @@ class QLearningAgent:
         
         # Update Q-value
         self.q_table[state][action] = current_q + self.learning_rate * (target - current_q)
-    
-    def apply_death_penalty(self, state, penalty_reward):
-        """Apply death penalty to all Q-values for a given state
-        
-        When an agent dies, penalize the state it was in so the agent learns to avoid
-        similar situations in future episodes.
-        
-        Args:
-            state: The state tuple where death occurred
-            penalty_reward: Negative reward to apply (typically DEATH_PENALTY)
-        """
-        # Apply penalty to all actions in this state
-        # This discourages the agent from taking actions that lead to death
-        for action in range(self.num_actions):
-            current_q = self.q_table[state][action]
-            # Update toward the penalty with full learning rate for stronger effect
-            self.q_table[state][action] = current_q + self.learning_rate * (penalty_reward - current_q)
     
     def decay_epsilon(self):
         """Decay exploration rate"""

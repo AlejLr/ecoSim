@@ -93,8 +93,15 @@ class grid_env():
         # Consistency checks
         if agent not in self.agents_by_position[old_pos]:
             raise ValueError(f"Agent {agent.agent_id} not found at old position {old_pos}")
+
+        # If the agent_grid count is inconsistent with agents_by_position, repair it
         if self.agent_grid[old_pos] <= 0:
-            raise ValueError(f"Agent grid count at {old_pos} is {self.agent_grid[old_pos]}, cannot decrement")
+            list_count = len(self.agents_by_position[old_pos])
+            if list_count > 0:
+                # Repair the grid to reflect the list (defensive recovery)
+                self.agent_grid[old_pos] = list_count
+            else:
+                raise ValueError(f"Agent grid count at {old_pos} is {self.agent_grid[old_pos]}, cannot decrement")
         
         # Update grids
         self.agent_grid[old_pos] -= 1

@@ -61,7 +61,7 @@ def train_with_seed(agent_type: str, num_episodes: int, seed: int, run_label: st
     )
     
     # Create Q-learning agent
-    q_agent = QLearningAgent(agent_id=0, num_actions=10, num_states=2160)
+    q_agent = QLearningAgent(agent_id=0, num_actions=10, num_states=540)
     
     episode_rewards = []
     episode_steps = []

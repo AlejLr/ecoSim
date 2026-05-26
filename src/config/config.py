@@ -51,66 +51,16 @@ ENERGY_REWARD_SCALE = 1.0       # Reward = energy_gained * scale
 REPRODUCTION_REWARD = 15.0       # Reward for successful reproduction
 DEATH_PENALTY = -10             # Penalty for dying
 STEP_PENALTY = -0.01            # Small penalty per step
-SURVIVE_BONUS = 0.1             # Small bonus for staying alive
 
 # Hunting and detection reward tuning
-HUNTING_SUCCESS_BONUS = 2.0     # Reward for successful hunt (increased from 0.25 to make hunting viable)
+HUNTING_SUCCESS_BONUS = 2.0     # Flat reward for a successful hunt
 PREDATOR_DETECTION_BONUS = 0.0  # Small bonus when predator detects prey (kept 0 to avoid bias)
 PREY_DETECTION_PENALTY = -0.5   # Penalty when prey detects predator (teaches evasion)
-PREY_PREDATION_SUSTAINABILITY_THRESHOLD = 75  # Below this prey count, hunting reward is reduced
 
-# Reward equation for each agent
-# Reward function:
-# For each agent, reward depends on the event e ∈ {step, eat, reproduce}.
-#
-# Generic:
-# R(a,e) =
-#   R_step(a)       if e = step
-#   R_eat(a)        if e = eat
-#   R_reproduce(a)  if e = reproduce
-#
-# Step reward:
-# R_step(a) = rho_step
-#           + I[d(a)] * rho_detect(a)
-#
-# Prey:
-# R_step_prey = rho_step
-#             + I[d_pred] * rho_pred_detect
-#
-# R_eat_prey       = rho_step + alpha_E * G_grass
-# R_reproduce_prey = rho_step + rho_repr
-#
-# Predator:
-# R_step_pred = rho_step
-#             + I[d_prey] * rho_prey_detect
-#
-# R_eat_pred = rho_step
-#            + alpha_E * 0.25 * G_prey
-#            + rho_hunt * min(1, N_prey / N_thresh)
-#
-# R_reproduce_pred = rho_step + rho_repr
-#
-# Compact event-based form:
-# R_prey = rho_step
-#        + alpha_E * G_grass * I[e == eat]
-#        + rho_repr * I[e == reproduce]
-#        + rho_pred_detect * I[d_pred]
-#
-# R_pred = rho_step
-#        + rho_thirst * I[h < h_min]
-#        + rho_drink * I[e == drink]
-#        + alpha_E * 0.25 * G_prey * I[e == eat]
-#        + rho_hunt * min(1, N_prey / N_thresh) * I[e == eat]
-#        + rho_repr * I[e == reproduce]
-#        + rho_prey_detect * I[d_prey]
-
-# Coexistence shaping: reward both species for staying alive together and near
-# a healthy prey:predator balance. The values are intentionally small so they
-# nudge learning without overwhelming the base task reward.
-COEXISTENCE_STEP_BONUS = 0.015        # Per-step bonus when both species are viable
-COEXISTENCE_EXTINCTION_PENALTY = -3.0 # Applied when either species goes extinct
-COEXISTENCE_PREY_FLOOR = 4            # Healthy prey floor for the bonus curve
-COEXISTENCE_PREDATOR_FLOOR = 2        # Healthy predator floor for the bonus curve
+# Coexistence scoring: used for evaluation metrics only, not for reward shaping.
+# Coexistence should emerge from population dynamics, not be hardcoded into rewards.
+COEXISTENCE_PREY_FLOOR = 4            # Healthy prey floor for the score curve
+COEXISTENCE_PREDATOR_FLOOR = 2        # Healthy predator floor for the score curve
 COEXISTENCE_TARGET_PREY_TO_PREDATOR_RATIO = 2.0  # Rough target balance
 
 # REPRODUCTION
@@ -118,7 +68,7 @@ REPRODUCTION_ENABLED = True     # Enable prey reproduction
 PREY_REPRODUCTION_THRESHOLD = 55    # Min energy needed to reproduce (lowered to enable pop growth)
 PREY_REPRODUCTION_ENERGY_COST = 25  # Energy cost for prey to reproduce (reduced from 30)
 PREY_OFFSPRING_ENERGY = 50      # Offspring start with this energy (increased from 40 for viability)
-PREY_REPRODUCTION_SEARCH_RADIUS = 2  # Nearby tiles to search for a free birth location
+PREY_REPRODUCTION_SEARCH_RADIUS = 6  # Nearby tiles to search for a free birth location
 PREY_CARRYING_CAPACITY_RATIO = 0.015  # Fraction of grid cells that can be occupied by prey (increased from 0.01)
 PREY_CARRYING_CAPACITY = int(GRID_SUBENV[0] * GRID_SUBENV[1] * PREY_CARRYING_CAPACITY_RATIO)
 PREY_REPRODUCTION_COOLDOWN = 8
@@ -127,7 +77,7 @@ PREDATOR_REPRODUCTION_ENABLED = True
 PREDATOR_REPRODUCTION_THRESHOLD = 70  # Min energy (lowered for more reproduction opportunities)
 PREDATOR_REPRODUCTION_ENERGY_COST = 35
 PREDATOR_OFFSPRING_ENERGY = 45
-PREDATOR_REPRODUCTION_SEARCH_RADIUS = 2
+PREDATOR_REPRODUCTION_SEARCH_RADIUS = 8
 PREDATOR_REPRODUCTION_COOLDOWN = 8
 PREDATOR_REPRODUCTION_PROB_SCALE = 0.7  # Higher chance than prey (encourage pack formation)
 PREDATOR_PREY_RATIO_FOR_REPRODUCTION = 0.5  # Max predators = prey_count * this ratio

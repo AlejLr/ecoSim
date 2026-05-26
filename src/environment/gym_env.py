@@ -16,7 +16,7 @@ class EcoSimEnv(gym.Env):
     
     Main learning agent is typically PREY. Other agents are random actors.
     
-    Observation: 7 normalized floats [energy, target_distance, target_dir_x, target_dir_y, target_detected, can_reproduce, pad]
+    Observation: 6 normalized floats [energy, primary_dist, primary_dir_x, primary_dir_y, target_detected, context]
     Action space: 10 discrete actions (0-7: move, 8: eat, 9: idle)
     Reward: energy_gained - step_penalty, or death_penalty on death
     """
@@ -40,9 +40,8 @@ class EcoSimEnv(gym.Env):
         # Action space: 8 moves + eat + idle
         self.action_space = spaces.Discrete(10)
         
-        # Observation space: [energy, target_distance, target_dir_x, target_dir_y, target_detected, can_reproduce, pad]
-        # Same for both prey and predator (7 dims)
-        self.observation_space = spaces.Box(low=0, high=1, shape=(7,), dtype=np.float32)
+        # Observation space: 6-dim, same shape for both species
+        self.observation_space = spaces.Box(low=0, high=1, shape=(6,), dtype=np.float32)
         
         # Initialize environment
         self.env = None
@@ -295,11 +294,9 @@ class EcoSimEnv(gym.Env):
         for other_agent in self.other_agents:
             if other_agent.is_alive():
                 if self.opponent_agent is not None or self.same_species_agent is not None or (self.memory and (self.trained_prey_model or self.trained_predator_model)):
-                    # Use trained model for action selection
-                    action = self._get_other_agent_action(other_agent)
-                    other_reward = other_agent.action(action, self.env)
+                    other_action = self._get_other_agent_action(other_agent)
+                    other_reward = other_agent.action(other_action, self.env)
                 else:
-                    # Use random movement
                     other_agent.test(self.env)
                     other_reward = 0
 
@@ -395,11 +392,10 @@ class EcoSimEnv(gym.Env):
             
             if offspring is not None:
                 from agents.agent import reward_for_agent
-                self.agent.episode_reward += reward_for_agent(
-                    self.agent.agent_type,
-                    event="reproduce",
-                )
-                
+                repro_reward = reward_for_agent(self.agent.agent_type, event="reproduce")
+                reward += repro_reward
+                self.agent.episode_reward += repro_reward
+
                 self.other_agents.append(offspring)
                 self.env.agents.append(offspring)
                 x, y = offspring.position

@@ -291,7 +291,7 @@ class FixedOpponentProtocol(TrainingProtocol):
                 prey_agent = QLearningAgent(
                     agent_id=0,
                     num_actions=10,
-                    num_states=2160,
+                    num_states=540,
                     epsilon_start=protocol1_epsilon_start,
                     epsilon_decay=protocol1_epsilon_decay,
                     epsilon_min=protocol1_epsilon_min,
@@ -300,7 +300,7 @@ class FixedOpponentProtocol(TrainingProtocol):
             prey_agent = QLearningAgent(
                 agent_id=0,
                 num_actions=10,
-                num_states=2160,
+                num_states=540,
                 epsilon_start=protocol1_epsilon_start,
                 epsilon_decay=protocol1_epsilon_decay,
                 epsilon_min=protocol1_epsilon_min,
@@ -317,7 +317,7 @@ class FixedOpponentProtocol(TrainingProtocol):
                 predator_agent = QLearningAgent(
                     agent_id=1,
                     num_actions=10,
-                    num_states=2160,
+                    num_states=540,
                     epsilon_start=protocol1_epsilon_start,
                     epsilon_decay=protocol1_epsilon_decay,
                     epsilon_min=protocol1_epsilon_min,
@@ -326,7 +326,7 @@ class FixedOpponentProtocol(TrainingProtocol):
             predator_agent = QLearningAgent(
                 agent_id=1,
                 num_actions=10,
-                num_states=2160,
+                num_states=540,
                 epsilon_start=protocol1_epsilon_start,
                 epsilon_decay=protocol1_epsilon_decay,
                 epsilon_min=protocol1_epsilon_min,
@@ -620,14 +620,17 @@ class AlternatingTrainingProtocol(TrainingProtocol):
             print(f"\n--- CYCLE {cycle + 1}/{num_cycles} ---\n")
 
             if prey_agent is None:
-                prey_agent = QLearningAgent(agent_id=0, num_actions=10, num_states=2160)
+                prey_agent = QLearningAgent(agent_id=0, num_actions=10, num_states=540)
+                # epsilon defaults to EPSILON_START = 1.0 for fresh starts
             else:
-                prey_agent.epsilon = EPSILON_START
+                # Epsilon is not saved to disk, so loaded models always have epsilon=1.0.
+                # Cap at 0.3 so the inherited Q-table isn't erased by full re-exploration.
+                prey_agent.epsilon = min(0.3, prey_agent.epsilon)
 
             if predator_agent is None:
-                predator_agent = QLearningAgent(agent_id=0, num_actions=10, num_states=2160)
+                predator_agent = QLearningAgent(agent_id=0, num_actions=10, num_states=540)
             else:
-                predator_agent.epsilon = EPSILON_START
+                predator_agent.epsilon = min(0.3, predator_agent.epsilon)
 
             print(f"PHASE A: Training PREY (cycle {cycle + 1})...")
             prey_opponent = predator_agent

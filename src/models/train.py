@@ -74,7 +74,7 @@ def train_agent(num_episodes=100, agent_type="PREY", num_prey=4, num_predators=2
     )
     
     # Create Q-learning agent
-    q_agent = QLearningAgent(agent_id=0, num_actions=10, num_states=2160)
+    q_agent = QLearningAgent(agent_id=0, num_actions=10, num_states=540)
     
     episode_rewards = []
     episode_steps = []
