@@ -380,7 +380,6 @@ class Predator(Agent):
         super().__init__(agent_id, position, "PREDATOR")
         self.reproduction_cooldown = 0
         self.vision_radius = PREDATOR_VISION_RADIUS
-        # Predators are faster than prey: move 2 tiles per move
         self.speed = 2
     
     def eat(self, environment, target_position=None):

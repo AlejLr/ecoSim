@@ -28,7 +28,7 @@ MAX_AGENT_ENERGY = 100          # All agents have same max energy
 ENERGY_DECAY_PER_STEP = 0.12    # Agents lose 0.12 energy per step (reduced from 0.3 for sustainability)
 MOVEMENT_ENERGY_COST = 0.15     # Extra energy cost when a move action is taken
 VISION_RADIUS = 6               # All agents can see 6 tiles away
-ACTION_RADIUS = 3               # All agents can act within 3 tiles (increased for predator hunting)
+ACTION_RADIUS = 2               # Predators must be within 2 tiles to eat (reduced from 3 to limit mass-kill range)
 PREDATOR_VISION_RADIUS = 8      # Predators see farther to compensate for prey's extra information
 
 # AGENT STARTING ENERGY (below max to require learning)

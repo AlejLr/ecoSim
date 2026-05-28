@@ -1,0 +1,852 @@
+
+%
+% template for Bachelor thesis
+% LIACS
+% Version 2025-2026
+%
+
+\documentclass[12pt]{article}
+
+% include some packages
+\usepackage[left=2cm,right=2cm,top=2cm,bottom=3cm]{geometry}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usetikzlibrary{shapes,backgrounds,calc,arrows}
+\usepackage{microtype}
+\usepackage[setpagesize=false,colorlinks=true,linkcolor=blue,urlcolor=red]{hyperref}
+
+\input{titlepage}
+
+% Here you enter the meta data for your thesis
+\title{Ecosystem Simulation for Environmental Policies using Reinforcement Learning}
+\author{Alejandro Lopez Ruiz}
+\studentnumber{s4075315}
+\date{\today}
+\supervisor{Aske Plaat}
+\secondsupervisor{Second Supervisor Name}
+
+% Select thesis type and study program by commenting/uncommenting
+\thesistype{Bachelor Thesis} 
+%\thesistype{Master Thesis} 
+%\studyprogram{Informatica}
+%\studyprogram{Informatica \& Economie}
+\studyprogram{Data Science and Artificial Intelligence}
+%\studyprogram{Computer Science}
+%\studyprogram{Creative Intelligence and Technology}
+%\studyprogram{ICT in Business and the Public Sector}
+
+\begin{document}
+\maketitle
+
+
+\thispagestyle{empty}
+\begin{abstract}
+\noindent
+This is where you write an abstract that concisely summarizes your thesis.
+Keep it short. No references here --- exceptions do occur.
+\end{abstract}
+
+\newpage
+
+\thispagestyle{empty}
+\tableofcontents
+\thispagestyle{empty}
+\clearpage
+\setcounter{page}{1}
+
+
+\section{Introduction} \label{intro}
+
+\subsection{Context and motivation}
+
+Environmental policy creation increasingly depends on decision-support tools that can organize ecological knowledge, structure uncertainty, and assist experts in evaluating alternative courses of action. In this context, \textbf{ecological decision support systems} (DSSs) have been used to support environmental management by combining scientific models and data to help expert judgment guide planning and intervention \cite{DErchia2001}. Traditionally, these systems have assisted with tasks such as resource management, conservation planning, environmental monitoring, and impact assessment; they provided a structured way to connect ecological understanding with a more practical decision-making process \cite{DErchia2001, Walling2020}. Their value lies not in replacing human expertise, but in improving the consistency, transparency, and scalability of environmental decisions in settings where many interacting variables must be considered.
+
+However, the need for stronger and more flexible DSSs has grown as environmental problems have become increasingly complex. Contemporary ecological challenges are rarely isolated or static; instead, they emerge from tightly coupled human-environment systems shaped by habitat loss, biodiversity decline, land-use change, climate change, and long-term human pressure. As a result, environmental policy must often be designed under uncertainty, limited observability, and even changing ecological dynamics. Reasons that make simple or rigid support tools progressively less adequate \cite{Walling2020, Duarte2004, Coskun2019}. In other words, policy-makers need systems that perform better at capturing dynamic interactions, anticipate indirect effects, and remain useful even when ecological relationships are nonlinear, context-dependent, or only partially understood \cite{Duarte2004, Deyle2016, Banitz2022}.
+
+This challenge has motivated increasing interest in the use of \textbf{artificial intelligence} within ecological decision support. AI methods can process large and heterogeneous datasets, identify hidden patterns, and support adaptive decision-making in complex environments \cite{Silvestro2022}. In biodiversity conservation and environmental management, AI has already been proposed to improve prioritization, monitoring, and long-term planning, especially in problems where uncertainty and scale make purely manual analysis difficult \cite{Silvestro2022, Lapeyrolerie2022}. Among AI methods, \textbf{reinforcement learning} is especially relevant because it is explicitly designed for sequential decision-making under uncertainty. Rather than only fitting patterns from static data, reinforcement learning allows an agent to learn policies through interaction with an environment, making it a particularly promising framework for settings in which decisions influence future ecological states over time \cite{Lapeyrolerie2022, CoReyes2020}. For this reason, reinforcement learning is increasingly being considered as a useful foundation for next-generation environmental DSSs, especially in domains where adaptation, feedback, and long-term consequences are central to the problem itself \cite{Michae2025, Park2021, Silvestro2022}.
+
+\subsection{Problem statement}
+
+Ecological systems are inherently difficult to model; their behavior emerges from many interacting processes that are often nonlinear, context-dependent, and variable over time. Population growth, species interactions, resource competition, and environmental feedback, among others, do not usually evolve in simple proportional ways. Instead, small changes in one part of the system can generate disproportionately large or delayed effects elsewhere \cite{Duarte2004, Coskun2019, Deyle2016, Thorson2026}.
+
+Traditional ecological modeling approaches have consistently provided an essential foundation for understanding these systems, mainly through equation-based methods such as ordinary differential equation models, logistic growth models, and predator-prey systems. These approaches are valuable because they are mathematically interpretable, analytically tractable, and often useful for capturing broad population-level tendencies. However, they rely heavily on assumptions that, in real ecosystems, are often only partially satisfied, which limits the extent to which classical models can fully represent complex ecological behavior \cite{Duarte2004, Cosme2023, Banitz2022}.
+
+These limitations become particularly important when those ecological models are used to support policy design. Environmental policy decisions are rarely made in stable and fully observable contexts; therefore, their usefulness as a decision-support tool is reduced. In such cases, policy recommendations may become overly sensitive to hidden assumptions, may fail to anticipate indirect or delayed consequences, or may inadequately reflect the adaptive nature of ecological systems themselves \cite{Duarte2004, Deyle2016, Banitz2022}.
+
+This motivates the exploration of more flexible modeling approaches that can better accommodate stochasticity, partial observability, and adaptive ecological dynamics. In particular, models that learn from interactions with the environment rather than depending entirely on pre-specified analytical structure may offer a useful complement to classical ecological methods \cite{Thorson2026, DeAngelis2015, Coskun2019}.
+
+\subsection{Research objective}
+
+The objective of this thesis is to investigate whether reinforcement learning can serve as a useful modeling approach for ecosystem simulation in the context of environmental policy design. More specifically, the thesis aims to evaluate whether an RL-based predator-prey simulation can complement or improve upon classical ecological models. Traditional ecological approaches, particularly equation-based models such as ordinary differential equation (ODE) systems, remain highly valuable due to interpretability and analytical clarity, but struggle to capture the full complexity of real ecological systems \cite{Duarte2004, Coskun2019}. Reinforcement learning, by contrast, offers a framework in which agents learn through interactions with the environment, making it especially relevant for systems in which behavior, feedback, and environmental variability are central components \cite{CoReyes2020, Park2021}.
+
+Accordingly, this thesis focuses on the development and evaluation of an RL-based ecosystem simulator centered on predator-prey dynamics. The study is designed around a comparison between two modeling paradigms: classical ecological baseline models based on ODEs, and a grid-based RL environment in which predator and prey agents learn and interact under partially observed conditions. Through this comparison, the thesis seeks to determine not only whether reinforcement learning can reproduce meaningful ecological dynamics, but also whether it may provide a stronger basis for policy-oriented ecological simulation \cite{Silvestro2022, Lapeyrolerie2022, Park2021}.
+
+In this sense, this thesis's contribution is dual. First, it develops a computational framework for studying predator-prey ecosystems through reinforcement learning. Second, it evaluates that framework against established ecological modeling approaches to assess its scientific and practical relevance for environmental decision support. Rather than treating reinforcement learning as a replacement for classical ecological theory, the thesis explores whether it can act as a flexible complementary tool for simulating ecological systems whose dynamics are difficult to specify fully in advance \cite{DErchia2001, Silvestro2022, Park2021}.
+
+\subsection{Research question and sub-questions}
+
+Based on the motivation and objective of this thesis, the central research question is:
+
+\begin{center}
+    \textbf{How effective are reinforcement learning methods, compared to classical ecological models, in supporting ecosystem policy design?}
+\end{center}
+
+This question reflects the main purpose of the study: to evaluate whether reinforcement learning can provide a useful and scientifically meaningful alternative or complement to equation-based ecological modeling in a policy-relevant context. The comparison is not only concerned with predictive performance, but also with the ability of the models to represent adaptive ecological behavior, remain robust under environmental variability, and generate insights that are relevant for conservation-oriented decision-making \cite{Silvestro2022, Duarte2004, Park2021}.
+
+To operationalize this broader question, the thesis addresses the following sub-questions:
+
+\begin{enumerate}
+    \item \textbf{How accurately can Q-learning agents reproduce population dynamics in a predator–prey ecosystem compared to classical models?}
+    \item \textbf{How robust are the RL-derived population policies under noisy or perturbed environmental conditions, and how do they align with conservation objectives such as species survival?}
+\end{enumerate}
+
+Together, these sub-questions structure the empirical part of the thesis. The first focuses on whether RL-based simulation can replicate meaningful ecological dynamics relative to established baseline models, while the second examines whether the learned behaviors remain useful when the system is subjected to uncertainty or perturbation. This distinction is important because, in ecological policy settings, a model must not only produce plausible dynamics under idealized conditions, but also remain informative when the environment becomes more variable and less predictable.
+
+\subsection{Scope of the thesis}
+
+This thesis examines the use of reinforcement learning for ecosystem simulation in a policy-relevant ecological setting. The work includes the design of a grid-based simulation environment, the implementation of Q-learning agents, and a comparison between this RL-based approach and classical ecological models based on ODEs. Within this scope, the thesis evaluates whether RL can reproduce meaningful ecological dynamics and provide useful insights for decision-support \cite{Silvestro2022, Duarte2004}.
+
+At the same time, the thesis does not aim to produce a fully realistic ecological model of natural systems, nor does it aim to deliver direct policy recommendations for specific environmental cases. The simulator is intended as a research-oriented approximation rather than as a complete ecological forecasting or management tool. Likewise, the work does not attempt to cover all possible ecological relationships, species types, or environmental processes, but instead restricts itself to a predator-prey setting to keep the study analytically and computationally manageable. Although the broader reinforcement learning literature includes more advanced multi-agent methods, this thesis is primarily centered on tabular Q-learning as a first comparative framework.
+
+These boundaries are intentional and appropriate to the aims of the study. As a bachelor's thesis, the project is designed as a focused comparative investigation rather than a complete ecological decision-support platform. Its purpose is to test whether reinforcement learning can serve as a meaningful complementary modeling approach in a controlled ecosystem setting, and to evaluate this potential against established classical baselines. By limiting the study to a clearly defined interaction structure, selected benchmark systems, and a manageable RL implementation, the thesis aims to maintain both methodological clarity and practical feasibility while still contributing to the broader discussion on AI-supported ecological modeling and environmental policy design \cite{DErchia2001, Silvestro2022}.
+
+\subsection{Thesis structure}
+
+\textbf{Section \ref{background}} presents the theoretical background and related work relevant to the study. It introduces classical ecological modeling approaches, including predator-prey and population-dynamics models, discusses their main limitations in complex ecological settings, and reviews the foundations of reinforcement learning and its use in ecological and environmental applications. \textbf{Section \ref{methodology}} describes the methodology of the thesis, including the overall comparative framework, the classical ODE baselines, the reinforcement learning setup, the case-study orientation, and the evaluation criteria used in the analysis.
+
+\textbf{Section \ref{system design}} presents the design and implementation of the EcoSim system, detailing the structure of the simulation environment, the agent design, the learning framework, and the main implementation choices made during development. \textbf{Section \ref{experimental}} describes the experimental setup, including the simulation settings, training configurations, benchmark scenarios, and comparison procedures. \textbf{Section \ref{results}} reports the results of the experiment, focusing on the behavior of the RL-based ecosystem simulation, its comparison with classical ecological models, and its robustness under different conditions.
+
+Finally, \textbf{Section \ref{discussion}} discusses the implications of the findings, the main limitations of the study, and the extent to which reinforcement learning can contribute to ecological modeling and policy-oriented simulation. \textbf{Section \ref{conclusion}} concludes the thesis by summarizing the main results, answering the research question, and outlining directions for future work.
+
+\section{Background and Related Work} \label{background}
+
+\subsection{Classical ecological modeling}
+
+\subsubsection{Population dynamics}
+
+Population ecology is concerned with understanding how and why the size of biological populations changes over time. At its core, the field studies processes such as birth, death, competition, and resource limitation, and seeks to describe how these processes shape the growth, decline, or stabilization of populations. The development of population ecology was closely tied to the rise of theoretical and mathematical ecology, in which ecological systems began to be represented through formal quantitative models rather than only descriptive biological observation \cite{Kingsland2015}.
+
+One of the foundational ideas in this development was that population growth cannot continue indefinitely. Early simple models of growth often assumed that the rate of increase of a population was proportional to its current size, which yields exponential growth. In its simplest continuous form, this can be written as:
+
+\begin{equation}
+    \frac{dN}{dt} = rN
+\end{equation}
+
+where $N$ denotes population size and $r$ is the intrinsic growth rate. This equation describes unrestricted growth, meaning that the larger the population becomes, the more rapidly it grows. Although useful at first approximation, such a model is ecologically unrealistic in most natural systems.
+
+The introduction of natural constraints led to one of the most influential ideas in population ecology: the \textbf{logistic growth model}. Rather than assuming unlimited exponential increase, the logistic model incorporates the idea that growth slows as the population approaches an environmental limit. This limit is known as the \textbf{carrying capacity}, commonly denoted by $K$, and represents the maximum population size that the environment can sustain under given conditions \cite{Kingsland1982, Bradshaw2023}. The logistic model is typically written as:
+
+\begin{equation}
+    \frac{dN}{dt} = rN\left(1 - \frac{N}{K}\right)
+\end{equation}
+
+This equation introduces \textbf{density dependence} into ecological modeling. When $N$ is small relative to $K$, the term $1 - \frac{N}{K}$ is close to 1, and the population grows approximately exponentially. As $N$ approaches $K$, the term becomes smaller, slowing growth until the net rate of change tends towards zero. In this sense, the logistic model captures the idea that population dynamics depend not only on intrinsic reproductive potential, but also on environmental limits and feedback from population density itself \cite{Kingsland1982, Bradshaw2023}.
+
+As population ecology developed further, these basic models became the starting point for more elaborate frameworks. Researchers extended growth equations to account for more realistic ecological settings, including delayed feedback, migration, structured populations, and interactions between multiple species. In this sense, the logistic model was not the endpoint of classical ecological modeling, but rather the beginning of a broader tradition in which ecological processes were expressed through differential equations and analyzed as dynamical systems \cite{Kingsland2015, Coskun2019}. Modern studies continue to show that density-dependent growth remains a useful conceptual and mathematical tool, even though real ecological systems often depart from the simplest assumptions of constant carrying capacity or homogeneous population structure \cite{Bradshaw2023}.
+
+\subsubsection{Predator-prey models}
+
+While population dynamics models describe how a single population changes over time, many ecological systems cannot be understood by studying species in isolation. In nature, populations are embedded in networks of interaction in which the growth or decline of one species depends on the presence of others. Among these interactions, the predator-prey relationship is one of the most central and widely studied in ecology. Predator-prey models aim to capture how the consumption of prey by predators influences the dynamics of both populations, often generating oscillatory or cyclic behavior over time \cite{Singh2024, Kingsland2015}.
+
+A useful way to represent these models is to extend the single-population growth framework into an interacting two-population system. Let $N$ denote the prey population and $P$ the predator. A general prey-predator interaction can be expressed as:
+
+\begin{equation}
+    \frac{dN}{dt} = f(N) - g(N, P)
+\end{equation}
+
+\begin{equation}
+    \frac{dP}{dt} = h(N, P) - m(P)
+\end{equation}
+
+Here, $f(N)$ represents prey growth in the absence of predation, $g(N, P)$ represents prey loss due to predator interaction, $h(N, P)$ is predator growth supported by prey consumption, and $m(P)$ represents predator mortality. This formulation is deliberately general, but it shows the key conceptual shift from single-species population ecology to interaction-based: population change is no longer determined only by internal reproduction and resource limitation, but also by cross-species dependence. 
+
+Predator-prey models became important not only because they explained ecological cycles, but also because they provided a mathematically tractable way to study regulation, instability, coexistence, and extinction. In many cases, they serve as a minimal framework for analyzing how local interactions can produce system-level ecological behavior \cite{Singh2024}. Over time, the basic predator-prey framework has been extended to include more realistic assumptions, such as resource limits, migration, nonlinear response functions, stochasticity, and even role reversal or context-dependent interaction structure, all of which reflect the fact that real ecological systems often deviate from the simplest assumptions of early models \cite{Hildrew1984, Singh2024}.
+
+\subsubsection{Lotka–Volterra and related ODE approaches}
+
+The most influential classical formulation of predator-prey dynamics is the \textbf{Lotka-Volterra model}, which became one of the foundation systems of theoretical ecology. Building on the broader development of population ecology, Lotka-Volterra equations provided a compact mathematical description of how two interacting populations can influence one another over time. Their importance lies not only in their historical role, but also in the fact that they established the basic equation-based framework through which predator-prey interactions have often been analyzed ever since \cite{Kingsland2015, Singh2024}.
+
+In its standard form, the Lotka-Volterra predator-prey system assumes that the prey population grows exponentially in the absence of predators, while the predator population declines exponentially in the absence of prey. The interaction between the two populations is then modeled through a bilinear term representing encounters between predator and prey. The classical equations are:
+
+\begin{equation}
+    \frac{dN}{dt} = \alpha N - \beta NP
+\end{equation}
+
+\begin{equation}
+    \frac{dP}{dt} = \delta NP - \gamma P
+\end{equation}
+
+where $N$ denotes prey population, $P$ predator population, $\alpha$ the prey intrinsic growth rate, $\beta$ the predation rate coefficient, $\delta$ the rate at which prey consumption contributes to predator growth, and $\gamma$ the predator mortality rate. Together, these equations describe a simple feedback structure: prey increase supports predator growth, while predator pressure reduces prey abundance.
+
+One of the main reasons for the enduring influence of the Lotka-Volterra model is that it mathematically captures cyclical predator-prey dynamics. It provides a clear baseline for understanding how interaction alone can generate oscillatory behavior, and it helped establish the idea that ecological systems can be studied as dynamical systems governed by coupled differential equations \cite{Kingsland2015, Singh2024}.
+
+For this reason, many related ODE approaches have extended the Lotka-Volterra framework to incorporate more realistic ecological behavior. One common modification is to replace unrestricted prey growth with logistic growth, thereby introducing carrying capacity into the predator-prey system:
+
+\begin{equation}
+    \frac{dN}{dt} = rN\left(1 - \frac{N}{K} \right) - \beta NP
+\end{equation}
+
+\begin{equation}
+    \frac{dP}{dt} = \delta NP - \gamma P
+\end{equation}
+
+This extension is important because it connects predator-prey dynamics to the density-dependent reasoning introduced earlier in population ecology. By including the carrying capacity $K$, the prey population is no longer assumed to grow without bound, which makes the model more ecologically plausible in many settings \cite{Bradshaw2023, Singh2024}. Other extensions have further modified the framework to include migration, alternative functional responses, heterogeneous interaction structure, or more complex stability conditions, reflecting the fact that classical ecological modeling has continuously evolved beyond the simplest two-equation system \cite{Tahara2018, Anonymous2024}.
+
+These related ODE approaches remain highly relevant because they provide interpretable and widely accepted ecological baselines. They allow researchers to study equilibrium behavior, oscillations, and stability in a transparent mathematical framework, and they continue to serve as a reference point for more complex ecological models.
+
+\subsection{Limitations of classical ecological models}
+
+Classical ecological models have played a central role in the development of theoretical ecology as they provide interpretable and mathematically structured representations of population and ecosystem dynamics. By reducing ecological systems to a manageable set of variables and relationships, they make it possible to analyze growth, interaction, equilibrium, and stability. However, this same abstraction also creates limitations. Ecological systems are not only complex but also often shaped by feedback mechanisms, uncertainty, and context-specific interactions that are difficult to capture fully within simplified equation-based frameworks. As a result, classical models are highly valuable as conceptual and analytical tools, but their descriptive and predictive power may weaken when they are applied to real systems whose behavior departs from the assumptions on which these models are built \cite{Duarte2004, Cosme2023, Coskun2019}.
+
+One major limitation is that ecological interactions are frequently \textbf{nonlinear}. In real ecosystems, the effect of one variable on another is rarely constant across all conditions. Species interactions can also vary over time, meaning that ecological relationships are often dynamic rather than stationary. This poses a challenge for classical models that rely on fixed functional forms and stable parameter assumptions. Although such formulations are mathematically convenient, they may fail to capture the changing structure of ecological interactions observed in practice \cite{Deyle2016, Thorson2026, DeAngelis2015}.
+
+A second limitation concerns \textbf{stochasticity and uncertainty}. Many classical ecological models are deterministic, meaning that the same initial conditions always produce the same trajectory. Natural ecosystems, however, are influenced by random fluctuations in weather, resource distribution, disease, migration, and demographic events. These stochastic components can substantially alter population outcomes, especially over long time horizons or in systems with sensitive interaction structures. This is particularly problematic when the model is used to support ecological inference or policy-relevant decision-making, since environmental decisions often must be made precisely under uncertain and changing conditions \cite{Duarte2004, Thorson2026, Deyle2016}.
+
+Classical ecological models also struggle with \textbf{hidden assumptions, heterogeneity, and context dependence}. Many equation-based formulations implicitly assume homogeneous populations, simplified interaction mechanisms, or fixed causal structure. What appears to be a general ecological law in one setting may fail in another because the underlying structure of the system has changed. Banitz et al. argue that model-derived explanations are often constrained by assumptions that remain hidden beneath the formal structure of the model, which limits how confidently such explanations can be generalized beyond the conditions under which the model was developed \cite{Banitz2022}.
+
+These issues become even more significant when ecological models are considered as tools for \textbf{environmental policy support}. Policy design requires models that remain informative under incomplete information, uncertainty, and perturbation, and that can help decision-makers reason about long-term consequences rather than only idealized system behavior. If the model cannot represent shifting dynamics, stochastic influences, or adaptive ecological responses, then its usefulness for decision support is reduced. This does not mean that classical models should be discarded; rather, it means that their strength in interpretability and analytical clarity must be weighed against the fact that they may not adequately represent all the features that matter in policy-relevant ecological systems \cite{Duarte2004, Banitz2022, Deyle2016}.
+
+For this reason, the limitations of classical ecological models motivate exploring better-suited complementary approaches to dynamic, uncertain, and partially observable environments. In particular, there is increasing interest in modeling frameworks that can adapt to feedback from the system itself rather than relying entirely on prespecified equations and fixed interaction structures. This is one of the main motivations for considering reinforcement learning in ecological simulation: not because classical ecological models lack value, but because more adaptive approaches may represent certain ecological features more flexibly in settings where complexity and uncertainty are central to the problem.
+
+\subsection{Reinforcement learning foundations}
+
+\subsubsection{Markov Decision Processes}
+
+A large part of reinforcement learning is built on the formalism of the \textbf{Markov Decision Process (MDP)}, which provides a mathematical framework for sequential decision-making under uncertainty. In contrast to static prediction problems, where a model maps inputs directly to outputs, reinforcement learning considers settings in which an agent repeatedly interacts with an environment over time. At each step, the agent observes the current situation, selects an action, receives a reward, and then transitions to a new situation. The objective is not simply to maximize immediate reward, but to learn a sequence of decisions that yield high cumulative reward over time. This makes the MDP framework particularly suitable for problems in which actions have delayed consequences and the quality of a decision depends on how it affects future system states.
+
+Formally, an MDP is typically defined as a tuple
+
+\begin{equation}
+    \mathcal{M} = (\mathcal{S}, \mathcal{A}, P, R, \gamma)
+\end{equation}
+
+where $\mathcal{S}$ is the set of possible states, $\mathcal{A}$ is the set of possible actions, $P$ is the transition function, $R$ is the reward function, and $\gamma \in [0, 1]$ is the discount factor. The state space $\mathcal{S}$ represents all situations the agent may encounter, while the action space $\mathcal{A}$ contains all actions available to the agent. The transition function specifies how the environment evolves after an action is taken, and the reward function quantifies the immediate utility of a state-action transition. The discount factor determines how much future rewards are valued relative to immediate rewards.
+
+More precisely, the transition dynamics are defined through conditional probabilities of the form
+
+\begin{equation}
+    P(s' \mid s, a) = \Pr(S_{t+1} = s' \mid S_t = s, A_t = a)
+\end{equation}
+
+which describe the probability of moving to state $s'$ after taking action $a$ in state $s$. This probabilistic formulation is essential because many environments are stochastic: the same action in the same nominal state does not always produce the same outcome. Similarly, the reward function may be written as
+
+\begin{equation}
+    R(s, a, s') = \mathbb{E}[R_{t+1} \mid S_t = s, A_t = a, S_{t+1} = s']
+\end{equation}
+
+so that rewards depend on the state, the chosen action, and optionally the resulting next state. Together, these elements define the dynamics of the decision problem.
+
+A policy specifies the behavior of the agent. In general, a policy is a mapping from states to actions, or more generally to a probability distribution over actions. A deterministic policy may be written as
+
+\begin{equation}
+    \pi(s) = a
+\end{equation}
+
+while a stochastic policy is written as
+
+\begin{equation}
+    \pi(a \mid s) = \Pr(A_t = a \mid S_t = s)
+\end{equation}
+
+Reinforcement learning aims to find a policy that maximizes the expected cumulative reward. This cumulative reward is usually expressed as the \textbf{return}
+
+\begin{equation}
+    G_t = \sum_{k=0}^{\infty} \gamma^k R_{t+k+1}
+\end{equation}
+
+which is the discounted sum of the future rewards from time step t onward. Discounting serves two purposes: it makes the infinite-horizon sum finite when rewards continue indefinitely, and it encodes a preference for rewards obtained sooner rather than later.
+
+The defining assumption of an MDP is the \textbf{Markov property}, which states that the future depends on the present state and action, but not on the full history beyond what is already encoded in the present state. Formally, this means
+
+\begin{equation}
+    \Pr(S_{t+1}, R_{t+1} \mid S_t, A_t, S_{t-1}, A_{t-1}, \dots, S_0, A_0) = \Pr(S_{t+1}, R_{t+1} \mid S_t, A_t)
+\end{equation}
+
+This assumption is central because it allows sequential decision problems to be represented compactly: if the current state contains all relevant information, then an optimal decision can be chosen based on that state alone. In practice, however, many real systems are only approximately Markovian. The quality of the MDP formulation, therefore, depends on whether the chosen state representation captures enough information about the environment to make future outcomes predictable in this restricted sense.
+
+In reinforcement learning, several important quantities are defined relative to a policy $\pi$. The \textbf{state-value function} gives the expected return from a state under that policy:
+
+\begin{equation}
+    V^\pi(s) = \mathbb{E}_\pi [G_t \mid S_t = s]
+\end{equation}
+
+Similarly, the \textbf{action-value function} gives the expected return from taking action $a$ in state $s$ and then following policy $\pi$:
+
+\begin{equation}
+    Q^\pi(s, a) = \mathbb{E}_\pi [G_t \mid S_t = s, A_t = a]
+\end{equation}
+
+These functions are fundamental because they provide a quantitative basis for comparing different actions and policies.
+
+\subsubsection{Q-learning}
+
+Among the classical reinforcement learning algorithms, \textbf{Q-learning} is one of the most important and widely used model-free methods. Its significance lies in the fact that it allows an agent to learn an effective decision policy directly from experience, without requiring prior knowledge of the transition probabilities or reward dynamics of the environment. Instead of solving the MDP analytically from a complete system model, Q-learning estimates the values of taking a given action in a given state through repeated interaction with the environment \cite{Watkins1992}.
+
+More precisely, Q-learning seeks to approximate the optimal action-value function $Q^*(s, a)$, which represents the maximum expected return obtainable by taking action $a$ in state $s$ and thereafter following the best possible policy. This function satisfies the \textbf{Bellman optimality equation}:
+
+\begin{equation}
+    Q^*(s, a) = \mathbb{E} \left[ R_{t+1} + \gamma \max_{a'} Q^*(S_{t+1}, a') \mid S_t = s, A_t = a \right]
+\end{equation}
+
+This equation expresses a recursive relationship: the optimal value of a state-action pair is equal to the immediate reward plus the discounted value of the best action available in the next state. In principle, if $Q^*(s, a)$ were known exactly, then an optimal policy could be obtained by selecting the action with the highest value in each state:
+
+\begin{equation}
+    \pi^*(s) = \arg\max_{a} Q^*(s,a)
+\end{equation}
+
+The challenge is that $Q^*(s, a)$ is generally unknown in advance and must therefore be learned from interaction. Q-learning addresses this by iteratively updating a table or function approximation of action values based on sampled transitions. Given a transition $(s, a, r, s')$, the Q-learning update rule is
+
+\begin{equation}
+    Q(s, a) \leftarrow Q(s,a) + \alpha \left[ r + \gamma \max_{a'} Q(s', a') - Q(s, a) \right]
+\end{equation}
+
+where $\alpha \in (0,1]$ is the learning rate, $r$ is the reward observed after taking action $a$ in state $s$, and $\gamma$ is the discount factor. The term inside the bracket is knows as the \textbf{temporal-difference (TD) error}:
+
+\begin{equation}
+    \delta_t = r + \gamma \max_{a'} Q(s', a') - Q(s, a)
+\end{equation}
+
+This error measures the discrepancy between the current value estimate and a one-step bootstrap target formed from the observed reward and the estimated value of the next state. Intuitively, if the observed transition suggests that the chosen action was better than expected, the Q-value is increased; if it was worse than expected, the Q-value is decreased.
+
+An important feature of Q-learning is that it is \textbf{off-policy}. The update uses the value of the best next action through the maximization term $\max_{a'}Q(s', a')$, regardless of which action the agent actually follows during behavior. This means that the policy used to generate experience may differ from the greedy policy learned. In practice, this is particularly useful because the agent must continue to explore the environment while also improving its value estimates. A common strategy is the $\epsilon$-greedy policy, in which the agent selects a random action with probability $\epsilon$ and otherwise selects the action with the highest current Q-value:
+
+\begin{equation}
+    \pi(a \mid s) =
+    \begin{cases}
+        1-\epsilon + \frac{\epsilon}{|\mathcal{A}|}, & \text{if } a = \arg\max_{a'} Q(s,a') \\
+        \frac{\epsilon}{|\mathcal{A}|}, & \text{otherwise.}
+    \end{cases}
+\end{equation}
+
+This exploration mechanism is essential because the agent can only learn accurate action values for state-action pairs that it visits sufficiently often. If the policy becomes greedy too early, it may converge to suboptimal behavior simply because it has not explored enough of the environment. Conversely, excessive exploration may slow convergence. The balance between exploration and exploitation is therefore one of the key practical issues in applying Q-learning.
+
+For this thesis, tabular Q-learning is particularly appropriate as an initial reinforcement learning framework. First, it provides a transparent and interpretable baseline that fits well with the comparative nature of the study. Second, its update mechanism is mathematically simple and directly grounded in the MDP formalism introduced earlier. Third, it allows the behavior of predator and prey agents to be analyzed through explicit action-value estimates rather than through a less interpretable black-box model. In the EcoSim environment, Q-learning is used to allow agents to learn ecological behavior from repeated interaction with a grid-based world, where state representations encode local environmental conditions, and rewards reflect ecological objectives such as survival, resource acquisition, and system stability. In this sense, Q-learning serves as the first step in evaluating whether adaptive agent-based learning can provide a meaningful alternative or complement to classical ecological equation-based modeling.
+
+\subsubsection{Multi-Agent reinforcement learning}
+
+While standard reinforcement learning is typically formulated for a single agent interacting with an environment, many real systems involve multiple decision-making entities whose behavior affects one another. In such settings, the environment is no longer passive from the perspective of each agent; part of the environment consists of other agents, each of which may also be learning and adapting over time. This gives rise to the framework of \textbf{multi-agent reinforcement learning (MARL)}, in which several agents simultaneously interact within a shared environment and learn policies based on individual or collective reward signals \cite{Huh2023, Gronauer2022}.
+
+Formally, MARL extends the reinforcement learning setting by introducing multiple agents $i \in {1, \dots, n}$, each with its own action and potentially its own observation, reward, and policy. At time step $t$, the system is in some global state $s \in S$, and each agent selects action $a_i \in A_i$. Together, these form a \textbf{joint action}
+
+\begin{equation}
+    \mathbf{a} = (a_1, a_2, \dots, a_n)
+\end{equation}
+
+which determines the next state and the rewards received by the agents. The transition dynamics can therefore be written as
+
+\begin{equation}
+    P(s' \mid s, a_1, a_2, \dots, a_n)
+\end{equation}
+
+Similarly, each agent may receive its own reward function $R_i (s, \mathbf{a}, s')$, or in cooperative settings, agents may share a common reward. The main difference from the single-agent case is that the outcome of an action now depends not only on the current environment state, but also on the simultaneously chosen actions of the other agents.
+
+This creates one of the central challenges of MARL: \textbf{non-stationarity}. In single-agent reinforcement learning, the environment is typically assumed to have fixed transition and reward dynamics. In multi-agent settings, however, the effective environment faced by one agent changes as the policies of other agents change during learning. From the perspective of any individual learner, the transition dynamics therefore appear non-stationary, even if the global system itself follows fixed rules \cite{Huh2023, Gronauer2022}. This makes convergence substantially more difficult, since an agent must learn in an environment whose behavior is itself evolving.
+
+A common formalism for MARL is the \textbf{stochastic game}, also known as a Markov game, which generalizes the MDP to multiple agents. A Markov game can be represented as a tuple
+
+\begin{equation}
+\mathcal{G} = (\mathcal{S}, \mathcal{A}_1, \dots, \mathcal{A}_n, P, R_1, \dots, R_n, \gamma),
+\end{equation}
+
+where $\mathcal{S}$ is the state space, each $\mathcal{A}_i$ is the action space of agent $i$, $P$ is the transition function over joint actions, $R_i$ is the reward function for agent $i$, and $\gamma$ is the discount factor. In this setting, each agent seeks to optimize its own expected discounted return, which may depend strongly on the evolving behavior of the others. The policy of agent $i$ can be written as $\pi_i(a_i \mid o_i)$, where $o_i$ denotes the local observation available to the agent. This is especially important in partially observable environments, where agents do not directly observe the full global state.
+
+Although many modern MARL methods rely on deep neural networks, the conceptual foundations also apply to tabular settings. In a tabular multi-agent setup, each agent may maintain its own value estimates and update them through local experience, even though the environment dynamics depend on the joint behavior of all agents. This kind of setup is particularly appropriate for a proof-of-concept ecological simulator such as the one developed in this thesis, where predator and prey agents interact repeatedly in a shared grid-based environment. Each species learns from local outcomes, but the ecological dynamics emerge from the collective interaction of all agents. In this sense, MARL provides the formal bridge between standard single-agent Q-learning and the adaptive predator–prey ecosystem simulation used in this study \cite{Park2021, Huh2023}.
+
+\subsection{Agent-based ecosystem simulation}
+
+Agent-based simulation provides an alternative modeling paradigm to aggregate equation-based ecological approaches by representing ecological systems from the perspective of individual entities and their local interactions. Instead of describing population change only through global state variables and differential equations, agent-based models (ABMs) represent systems as collections of autonomous agents that perceive, act, and interact within an environment. System-level ecological behavior then emerges from the repeated local decisions of these agents. This bottom-up perspective is especially useful in ecological settings where spatial structure, local interaction, heterogeneity, and adaptive behavior play an important role in shaping overall dynamics \cite{Lippe2019, Zhang2020}.
+
+A central strength of agent-based ecosystem simulation is that it allows ecological complexity to be represented more explicitly at the micro level. Individual organisms can differ in location, internal state, behavior, or access to resources, and these differences may influence how the larger system evolves. In contrast to classical population models, which typically describe populations as homogeneous aggregates, agent-based simulation can preserve variation between entities and thereby represent ecological processes that depend on local conditions or decentralized interaction. This is particularly important in ecosystems where movement, neighborhood effects, spatial exclusion, and resource competition contribute significantly to population-level outcomes \cite{Zhang2020, Levin2005}.
+
+Agent-based models have become increasingly important in ecology because they are well-suited for representing systems in which global dynamics arise from local ecological rules. Rather than imposing a single equation for the whole population, the model designer specifies behavioral rules for individual agents and environmental processes, and then studies the emergent consequences of those repeated interactions. This makes ABMs especially relevant for ecosystems with adaptive organisms, spatially distributed resources, and complex feedback loops, where aggregate equations may conceal the mechanisms through which ecological patterns actually arise \cite{Lippe2019, Levin2005}. In this sense, agent-based simulation is not simply a computational alternative to classical ecology, but a different modeling perspective that prioritizes process, interaction, and emergence.
+
+The concept of \textbf{emergence} is particularly important in this context. In ecological systems, many large-scale patterns are not directly imposed, but arise from repeated local interactions among organisms and between them and their environment. Population cycles, clustering, competition effects, and spatial self-organization may all emerge from simple rules operating at the level of individuals. Levin emphasizes that ecological complexity is often the result of self-organization across scales, meaning that system-level regularities cannot always be understood solely by examining aggregate variables in isolation \cite{Levin2005}. Agent-based simulation is especially valuable precisely because it provides a way to study such emergent behavior computationally.
+
+For ecological applications, agent-based simulation also offers a natural way to incorporate spatial and behavioral realism. Agents may move across explicit environments, consume resources locally, compete for territory, reproduce under local constraints, or respond to nearby threats. These features make ABMs particularly suitable for predator-prey systems, where ecological outcomes depend strongly on encounters, movement, local density, etc. As a result, agent-based ecosystem simulation has become a useful framework for studying ecological dynamics that are difficult to represent cleanly through fully aggregated equations alone \cite{Lippe2019, Zhang2020}.
+
+\subsection{Reinforcement learning in ecology and environmental management}
+
+Reinforcement learning has become increasingly relevant in ecological and environmental research because many problems in these domains can naturally be framed as sequential decision-making under uncertainty. In environmental systems, decisions often have long-term consequences, must be taken with incomplete knowledge of future conditions, and involve trade-offs between short-term gains and long-term system stability. This makes RL especially attractive since its central objective is to learn policies that maximize cumulative reward through repeated interaction with an environment rather than through static one-step prediction alone \cite{Lapeyrolerie2022, Michae2025}.
+
+A major reason for this relevance is that ecological and environmental management problems are often dynamic and feedback-driven. Conservation planning, natural-resource management, ecosystem monitoring, and intervention design all involve actions whose effects unfold over time and may alter the future state of the system. Unlike classical optimization methods that assume a fixed decision context, RL explicitly accounts for the fact that current decisions shape future opportunities and constraints. This makes it well-suited to settings where management must adapt to changing system states, uncertain outcomes, and nonlinear ecological responses \cite{Silvestro2022, Lapeyrolerie2022}.
+
+Within ecology, more specifically, RL has been proposed not only as a tool for management and policy support but also as a framework for studying adaptive behavior in ecological systems themselves. The idea of ecological reinforcement learning emphasizes that learning agents and ecological environments are deeply connected: the structure of the environment, the distribution of resources, and the costs and rewards of behavior all affect what strategies are learned and how adaptation unfolds over time \cite{CoReyes2020}. From this perspective, RL is not merely a computational technique applied to ecology from the outside but a framework capable of representing ecological interaction, adaptation, and feedback in a formally consistent way.
+
+This becomes especially relevant in predator-prey systems, where the behavior of one species directly shapes the strategic environment of the other. Recent studies have shown that reinforcement learning can be used to simulate prey-predator interaction in a way that produces adaptive and ecologically meaningful dynamics. Park et al., for example, model predator and prey populations as learning agents and show that co-learning can generate oscillatory population behavior resembling classical ecological cycles \cite{Park2021}. Such work is important because it suggests that RL-based ecosystem simulation may capture aspects of ecological interaction that are difficult to specify fully in advance through fixed equations alone, especially when behavior depends on repeated feedback from the environment.
+
+At the same time, reinforcement learning has also attracted interest in environmental management because it can support decisions in settings characterized by uncertainty, delayed outcomes, and limited resources. In conservation, for example, RL has been used to study action selection under budget constraints and uncertain ecological dynamics, showing that learned policies may provide flexible alternatives to static intervention rules \cite{Lapeyrolerie2022}. More broadly, AI-based methods have been proposed as tools to improve biodiversity protection by supporting prioritization, prediction, and decision-making in complex systems where the scale of the problem exceeds what can easily be handled through just manual analysis \cite{Silvestro2022}. In this sense, RL stands at the intersection of two important developments, the use of AI and the implementation of learning-based simulations.
+
+Nevertheless, RL in ecology and environmental management remains an emerging area rather than a generally used field. Many RL approaches still face challenges related to interpretability, scalability, reward specification, and ecological realism. In addition, the success of RL models depends strongly on how the environment is formulated, how objectives are encoded, and how closely the simulation learning problem reflects the ecological system of interest \cite{CoReyes2020, Park2021}. These limitations are important, but they do not diminish the value of RL as a research direction. Instead, they highlight the need for comparative studies that evaluate the feasibility of its use.
+
+\subsection{Research gap and positioning of this thesis}
+
+The literature reviewed in the previous sections shows that two strong but only partially connected traditions currently exist. On the one hand, classical ecological modeling provides a long-term established mathematical framework for describing population dynamics, predator-prey interaction, and ecosystem regulation through interpretable equation-based models \cite{Kingsland2015, Singh2024, Duarte2004}. On the other hand, recent work in RL has demonstrated that adaptive agents can be used both to study ecological interaction and to support environmental decision making under uncertainty \cite{CoReyes2020, Park2021, Lapeyrolerie2022, Silvestro2022}. However, despite the promise of this second line of work, there is still a limited amount of research that directly compares RL-based ecosystems and the opportunities that the new technology brings to the classical methods in a grounded and relevant way.
+
+More specifically, much of the classical ecological literature prioritizes interpretability, analytical tractability, and population-level description, but often struggles with adaptive behavior, partial observability, non-stationary, and context-dependent interaction. Conversely, RL-based approaches offer flexibility, feedback-driven adaptation, and the ability to model decentralized interacting agents, but they are often studied either in abstract learning environments or in highly application-specific management problems rather than in explicit comparison with traditional ecological baselines \cite{Duarte2004, Banitz2022, Park2021}. As a result, an important gap remains between the theoretical strengths of RL and a sequential decision-making framework and its evaluation as a scientifically meaningful alternative or complement to well-established ecological modeling practices. 
+
+A second gap concerns the intersection between ecosystem simulation and environmental policy support. Existing work on ecological decision support systems and AI for biodiversity protection suggests that environmental decision-making increasingly requires tools that can deal with uncertainty, dynamic feedback, and long-term consequences \cite{DErchia2001, Walling2020, Silvestro2022}. At the same time, RL research in ecology has shown that learning agents can generate adaptive system behavior, particularly in predator-prey settings \cite{CoReyes2020, Park2021}. Yet there remains relatively little work that explicitly asks whether RL-based simulation can help bridge these two domains: that is, whether it can function not only as a computational learning method, but also as a plausible modeling framework for ecological systems whose behavior matters for policy reasoning.
+
+This thesis is positioned precisely within that gap. It does not attempt to replace classical ecological theory, nor does it claim to build a fully realistic policy-ready ecological DSS. Instead, it investigates whether reinforcement learning can provide a useful complementary approach for ecosystem simulation by comparing an RL-based predator-prey model against the classical ecological ODE baselines in a controlled setting. The focus on predator-prey dynamics provides a tractable, but non-trivial, ecological context, while the comparison with equation-based models makes it possible.
+
+\section{Methodology} \label{methodology}
+
+\subsection{Research design overview}
+
+This thesis adopts a comparative computational modeling design to study predator-prey ecosystem dynamics. It compares a classical ecological baseline based on ordinary differential equations with a reinforcement-learning-based ecosystem simulator in which predator and prey agents interact within a spatial environment and adapt their behavior through experience. The purpose of this design is to assess whether a learning-based simulation framework can provide a useful complementary perspective to classical ecological modeling.
+
+The study is both comparative and exploratory. It is comparative because both modeling approaches are examined within the same general predator-prey setting. It is exploratory because the thesis does not assume in advance that one modeling paradigm is universally superior, but instead investigates the kinds of ecological behavior each can represent and the assumptions under which those behaviors emerge.
+
+Overall, the methodology should be understood as a proof-of-concept framework for examining the role of reinforcement learning in ecosystem simulation. It does not attempt to replace classical ecological models or to construct a fully realistic environmental decision-support system. Rather, it provides a structured way to study whether an RL-based predator-prey simulator can capture relevant ecological dynamics and offer useful insight alongside a classical aggregate baseline.
+
+\subsection{General comparison framework}
+
+The comparison is carried out in a controlled predator-prey context and is organized around two distinct modeling setups. The first is a classical ODE baseline, which represents predator and prey populations through continuous state variables and fixed interaction terms. The second is an RL-based simulator, which represents the same ecological setting through individual agents, local interactions, and learned decision-making.
+
+The framework compares these two setups under matched ecological conditions as far as possible. The goal is not to force exact equivalence between two fundamentally different formalisms, but to evaluate how they differ in the dynamics they generate and in the assumptions through which those dynamics arise.
+
+The comparison includes both quantitative and qualitative elements. Quantitatively, it examines outputs such as population trajectories, persistence or extinction behavior, and other measures related to system stability. Qualitatively, it considers the overall character of the resulting dynamics, including oscillatory behavior, coexistence patterns, and the extent to which the RL-based model generates adaptive ecological interaction that is not directly imposed by the baseline equations.
+
+\subsection{Classical ecological baseline}
+
+\subsubsection{Selected ODE models}
+
+The classical ecological baseline in this thesis consists of two deterministic predator-prey ODE models implemented separately from the RL simulator. The first is the standard Lotka-Volterra model, used as the simplest aggregate benchmark for predator-prey interaction. In this formulation, prey growth is modeled as exponential in the absence of predators, while predator decline is modeled as exponential in the absence of prey. The implemented system is given by:
+\begin{equation}
+    \frac{dN}{dt} = \alpha N - \beta NP
+\end{equation}
+
+\begin{equation}
+    \frac{dP}{dt} = \delta \beta NP - \gamma P
+\end{equation}
+
+where $N$ denotes prey population, $P$ predator population, $\alpha$ prey birth rate, $\beta$ the predation rate coefficient, and $\gamma$ the predator mortality rate. This model serves as the most basic classical reference because it captures cyclical prey-predator interaction while remaining mathematically compact and interpretable.
+
+The second implemented baseline is the logistic-prey model, corresponding to the Rosenzweig-MacArthur-style extension of Lotka-Volterra. This formulation introduces prey carrying capacity and is therefore more directly aligned with the ecological constraints built into the RL simulator. The implemented system is
+
+\begin{equation}
+    \frac{dN}{dt} = rN \left( 1 - \frac{N}{K} \right) - aNP
+\end{equation}
+
+\begin{equation}
+    \frac{dP}{dt} = eaNP - dP
+\end{equation}
+
+where $r$ is the prey intrinsic growth rate, $K$ the prey carrying capacity, $a$ the attack rate, $e$ the predator conversion efficiency, and $d$ the mortality rate. Relative to the standard Lotka-Volterra system, this model adds explicit density dependence on the prey side and therefore provides a more ecologically constrained aggregate baseline.
+
+Both models are used to generate classical reference outputs, including fitted predator and prey trajectories, phase portraits, nullclines, equilibrium analyses, and sensitivity analyses. At the current methodological level, the ODE analysis and the RL pipeline remain structurally separate in code, but they are designed to produce comparable population-level outputs.
+
+\subsubsection{Assumptions and parameters}
+
+The ODE baseline is built on a set of assumptions that distinguish it clearly from the RL-based simulation. First, both models are formulated in continuous time and solved numerically using a deterministic ODE solver. Second, predator and prey are represented as homogeneous, well-mixed populations, rather than individuals. Third, the interaction coefficients are fixed throughout each simulation, so the models do not represent adaptation, local decision-making, or time-varying ecological behavior. Finally, spatial structure, environmental stochasticity, and individual heterogeneity are absent from the ODE formulation. These assumptions are appropriate for a classical benchmark, but they also delimit the ecological mechanisms that the baseline can represent.
+
+The parameters of the two models follow their standard biological interpretations. In the Lotka-Volterra system, the fitted parameters are prey birth rate $\alpha$, predation rate $\beta$, predator conversion efficiency $\delta$, and predator mortality $\gamma$. In the logistic-prey system, the fitted parameters are the same, but with the introduction of the prey growth rate $r$ and the prey carrying capacity $K$. In addition to these ecological coefficients, the ODE analysis also specifies numerical-simulation parameters such as solver type, tolerance settings, number of output points, initial conditions, and simulation horizon.
+
+Parameter selection in the implemented ODE analysis follows two different strategies. For the historical hare–lynx and Isle Royale case studies, parameters are obtained by numerical fitting using differential evolution, with model quality assessed through trajectory fit and information criteria. For the RL-calibrated ODE scenario, parameters are instead derived analytically from the RL simulator configuration, using approximate translations from grid-world quantities such as carrying capacity, action radius, step horizon, and energy decay. This produces an illustrative ODE parameterization grounded in the simulator design rather than in historical ecological data.
+
+Methodologically, several limitations of these parameter choices are important. The logistic-prey model does not always behave as a substantively distinct model from standard Lotka–Volterra, since fitted carrying-capacity values can collapse toward the optimization boundary, effectively removing the logistic constraint. Likewise, some ecological regimes, most notably the Isle Royale wolf crash, cannot be reproduced well by either deterministic ODE model because they reflect structural breaks outside the scope of fixed-parameter aggregate equations. Finally, the RL-calibrated ODE parameters should be interpreted as approximate scale translations rather than as validated ecological estimates. For this reason, the ODE baseline is used in the thesis primarily as a classical comparative benchmark rather than as a fully realistic ecological forecasting model.
+
+\subsection{RL-based simulation approach}
+
+\subsubsection{Environment design}
+
+The reinforcement-learning-based ecosystem simulator is implemented as a discrete two-dimensional grid-world environment in which predator and prey agents interact over time. The spatial substrate consists of a bounded grid of size $150 \times 150$, where each location corresponds to a discrete cell identified by integer $(x,y)$ coordinates. The environment is not wrapped toroidally; instead, all movement and lookup operations are constrained by hard spatial boundaries, so agents cannot move beyond the limits of the grid. This design makes the simulator explicitly spatial while retaining a relatively simple and computationally tractable structure. 
+
+At the substrate level, the environment currently implements a simplified tile-based resource system. The two operative tile types are grass and empty. Grass tiles provide consumable energy to prey agents and regenerate after depletion according to a fixed regrowth delay, whereas empty tiles provide no resources. Resource regeneration is deterministic and local: once a grass tile is consumed, it becomes unavailable for a fixed number of steps before becoming edible again. This produces a renewable but spatially distributed food source that constrains prey movement and survival.
+
+The simulator advances in discrete timesteps, and ecological change occurs through repeated update cycles. At a high level, each step consists of agent action, environmental update, and post-action ecological processing. In the single-agent training wrapper, the main learning agent acts first, followed by the background agents; after all actions are applied, resources regenerate, dead agents are removed, reproduction is processed, and episode termination conditions are checked. In the multi-agent training wrapper, all currently alive agents are first collected and randomly shuffled, after which each acts once during the step. Resource regeneration, epsilon decay, dead-agent cleanup, and reproduction are then processed in sequence. This means that the environment is not dully synchronous in the strict game-theoretic sense, but rather sequential and order-sensitive, with randomization used in the multi-agent setting to reduce systematic update bias.
+
+Episodes begin with an environment reset, during which both the ecological substrate and the agent population are initialized. The tile map may either be generated procedurally according to a predefined tile distribution or loaded from a test map. Agents are placed at random, discrete positions on the grid. The environment supports both a single-agent training configuration, in which one focal learning agent is embedded in a larger ecological population, and a multi-agent configuration, in which all active agents are learning agents. Episode length is bounded by a fixed step horizon, and episodes terminate either when the maximum number of steps is reached or when the relevant death conditions are satisfied, depending on the wrapper used.
+
+From an implementation perspective, the environment stores ecological state through several coordinated data structures. These include the tile grid itself, an occupancy grid, a flat list of agents, and a position-indexed mapping that associates grid cells with the agents currently occupying them. Importantly, the environment allows multiple agents to occupy the same cell, meaning that movement does not enforce exclusive spatial occupancy. Local ecological interactions are resolved through local spatial lookup rules on the discrete grid. As a result, the environment should be understood as a discretized spatial ecosystem with local lookup rules rather than as a physically realistic continuous-space model.
+
+At the ecological level, the environment incorporates several key mechanisms relevant to predator-prey dynamics. These include renewable food sources, random initial population placement, local offspring placement during reproduction, immediate death and removal when agents expire, and direct predation events when predators successfully consume prey. Reproduction depends on threshold and neighborhood conditions, while predation and death are processed directly at the environment level to maintain consistency of the population state. Taken together, these mechanics define the ecological substrate within which learning takes place: the RL agents do not act in an abstract benchmark environment, but in a spatially explicit world with resource renewal, mortality, reproduction, and species interaction.
+
+One important methodological implication of this design is that the environment deliberately prioritizes controlled ecological abstraction over full biological realism. The world is bounded and discrete, resources are modeled in a simplified tile-based way, and interactions are local but not physically continuous. These simplifications are appropriate for a proof-of-concept ecosystem simulator because they make agent learning and population dynamics computationally manageable while preserving the core ecological elements required for predator-prey simulation. At the same time, they also define part of the methodological scope of the study, since any results obtained from the simulator must be interpreted relative to this simplified but explicit environmental structure. 
+
+\subsubsection{Agent types}
+
+The RL-based ecosystem simulator implements three agent classes: a shared base class, Agent, and two species-specific subclasses, Prey and Predator. The base class defines the common structural elements of all agents, including position, energy state, movement behavior, and the general observation interface, while the two subclasses implement specific feeding, reproduction, and interaction logic. There are no distinct non-learning or background subclasses; instead, both prey and predator agents may optionally be assigned a reinforcement-learning object through a reference field, allowing the same ecological agent class to function either as a learning agent or as a non-learning agent depending on the training setup.
+
+At the shared level, each agent is defined by a unique identifier, a discrete spatial position, a species label, and an internal energy value. Agents also store a vision radius, a speed parameter, a reward bookkeeping field, and an optional pointer to a Q-learning object used externally by the training system. In addition, both prey and predator agents maintain a reproduction cooldown, which is decremented over time and constrains the frequency of reproduction events. The effective internal survival dynamics of agents are therefore driven by energy and reproduction-related variables rather than by a full dual-resource metabolism.
+
+The two species differ primarily in movement speed, feeding mechanism, and reproductive constraints. Prey agents consume grass resources from nearby tiles and use the corresponding energy gain to maintain survival and enable reproduction. Predator agents instead consume prey agents directly through local predation events, gaining a fraction of the prey's energy after a successful kill. Predators also move faster than prey, which creates an asymmetric interaction structure consistent with their ecological role. Reproduction is implemented for both species through a sexual pairing process requiring a nearby mate, sufficient energy, a reproduction cooldown expiry, and a free nearby location for offspring placement. In addition to these shared constraints, the prey population is further limited by a carrying capacity boundary that is computed as a function of the size of the grid, approximating the constraints of a real ecosystem.
+
+At the lifecycle level, all agents lose energy over time and through movement, and they die when their energy falls to zero or below. Death is handled explicitly by removing the agent from the environment's population list, spatial position map, and occupancy grid, thereby preventing dead agents from influencing the simulation state. When reproduction succeeds, offspring are created as new instances of the appropriate subclass and initialized with species-specific offspring energy values. This means that the simulation models ecological population turnover directly at the agent level rather than through aggregate birth-death rates alone.
+
+From a methodological perspective, the agent design reflects the hybrid character of the simulator. Ecologically, the agents represent individual predator and prey organisms with local interaction rules and explicit survival constraints. Computationally, they serve as the carriers of the RL behavior when linked to a learning module. This separation between ecological embodiment and learning control is important because it allows the same underlying ecosystem to be used under different training configurations without redefining the species logic itself. At the same time, it also implies that the biological realism of the model are bounded by the simplicity of the implemented agent state, particularly in the absence of richer physiological or behavioral variables beyond energy, spatial position, and reproduction status.
+
+\subsubsection{State representation}
+
+The reinforcement-learning agents in the simulator operate under partial observability. Rather than accessing the full ecological state of the environment, each agent receives a compact local observation vector derived from its own internal state and from nearby ecological features. This design means that the RL state does not encode the complete simulator configuration, such as global population counts, distant agents, or the full tile map. Instead, it provides a species-specific local summary intended to support tractable decision-making.
+
+In the current implementation, the observation vector has dimensionality six and follows a shared structural format for both species:
+
+\begin{equation}
+o = \left[
+e,\,
+d,\,
+\Delta x,\,
+\Delta y,\,
+I_{\mathrm{target}},\,
+c
+\right].
+\end{equation}
+
+Here, $e$ is the normalized energy level of the agent, $d$ is the normalized distance to the nearest ecologically relevant target, $\Delta x$ and $\Delta y$ are normalized direction components, $I_{\mathrm{target}}$ is a binary target-detection indicator, and $c$ is a binary context variable whose interpretation depends on the species. Although the vector structure is shared, the ecological meaning of the target and of the final dimension differs between prey and predator agents.
+
+For prey agents, the observation uses conditional encoding. The prey vector can be written as:
+
+\begin{equation}
+o^{\mathrm{prey}} =
+\left[
+e,\,
+d_{\mathrm{primary}},\,
+\Delta x_{\mathrm{primary}},\,
+\Delta y_{\mathrm{primary}},\,
+I_{\mathrm{food}},\,
+I_{\mathrm{pred}}
+\right],
+\end{equation}
+
+where ($d_{\mathrm{primary}}$, $\Delta x_{\mathrm{primary}}$, and $\Delta y_{\mathrm{primary}}$ encode either the nearest food source or the nearest predator, depending on context), $I_{\mathrm{food}}$ indicates whether food is sufficiently close to be considered locally detected, and $I_{\mathrm{pred}}$ indicates whether a predator is locally detected. When $I_{\mathrm{pred}}=0$, the primary distance and direction variables encode the nearest grass tile and the prey is in foraging mode. When $I_{\mathrm{pred}}=1$, the same variables encode the nearest predator and the prey is in evasion mode. This conditional encoding allows the same state dimensions to support both food-seeking and directional escape behavior without increasing the size of the tabular state space.
+
+For predator agents, the target is the nearest prey agent. The observation is therefore oriented toward local hunting behavior. The predator vector can be written as:
+
+\begin{equation}
+o^{\mathrm{pred}} =
+\left[
+e,\,
+d_{\mathrm{prey}},\,
+\Delta x_{\mathrm{prey}},\,
+\Delta y_{\mathrm{prey}},\,
+I_{\mathrm{prey}},\,
+I_{\mathrm{density}}
+\right],
+\end{equation}
+
+where $d_{\mathrm{prey}}$ is the normalized Manhattan distance to the nearest prey, $\Delta x_{\mathrm{prey}}$ and $\Delta y_{\mathrm{prey}}$ encode prey direction, $I_{\mathrm{prey}}$ is the corresponding detection flag, and $I_{\mathrm{density}}$ is a binary prey-density indicator that distinguishes between sparse and prey-rich local neighborhoods. Thus, both species use all dimensions of the observation vector, but the final context variable captures different ecological information for prey and predator agents.
+
+Observation values are computed from local spatial queries and then normalized to the interval $[0, 1]$. Energy is scaled by the maximum agent energy. Distances are computed using Manhattan distance ($|dx|+|dy|$) and then normalized by twice the vision radius. Direction components are linearly mapped from signed offsets to the unit interval. Detection indicators are binary, but the thresholds used to determine detection are not fully symmetric across species. Prey food detection depends on whether the nearest grass resource lies within the action radius, whereas predator target detection depends on whether the normalized prey distance is below a threshold of 0.5. Prey-side predator detection is also binary and determines whether the observation is interpreted in foraging mode or evasion mode.
+
+Before learning, the observation vector is converted into a discrete state by the tabular Q-learning component. Discretization is applied uniformly across both species and maps the six continuous or binary observation components into a tuple of discrete indices. The implemented discretization scheme is:
+
+\begin{itemize}
+    \item energy: 5 bins
+    \item target distance: 3 bins
+    \item direction $x$: 3 bins
+    \item direction $y$: 3 bins
+    \item target detected: 2 bins
+    \item context variable: 2 bins
+\end{itemize}
+
+This yields a theoretical discrete state space of size:
+
+\begin{equation}
+|\mathcal{S}| = 5 \times 3 \times 3 \times 3 \times 2 \times 2 = 540.
+\end{equation}
+
+The same discretization mapping is used for prey and predator agents; species differences arise only in the way the observation vector is populated before discretization. As a result, the RL system uses a shared tabular state architecture with species-specific ecological content.
+
+Methodologically, this state representation provides a compact and computationally manageable abstraction of the local ecological situation. It captures survival-relevant variables such as energy, target proximity, coarse direction, and—for prey—an explicit predator-danger signal. At the same time, the representation remains intentionally coarse. It excludes most global ecological information and compresses directional information into only three bins per axis. The current design is therefore best interpreted as a simplified local ecological state abstraction suitable for tabular learning rather than as a complete state description of the full ecosystem.
+
+\subsubsection{Action space}
+
+The RL-based ecosystem simulator uses a discrete action space of size ten, shared by both predator and prey agents. The action set consists of eight movement actions, one feeding action, and one idle action. Formally, the action space can be written as:
+
+\begin{equation}
+\mathcal{A} = \{a_0, a_1, \dots, a_9\},
+\end{equation}
+
+where $a_0$ to $a_7$ correspond to directional movement, $a_8$ corresponds to eating, and $a_9$ corresponds to idling. The movement component is eight-directional, including the four cardinal directions and the four diagonals. This gives agents a richer spatial control scheme rather than a purely four-neighbor grid model and allows both predator pursuit and prey avoidance to emerge through directional movement in a spatially explicit environment.
+
+More specifically, the movement actions correspond to up, down, left, right, up-right, down-right, up-left, and down-left. These actions are implemented uniformly across species, but their ecological consequences are not fully identical because predators and prey differ in movement speed. Prey agents use the default movement speed of 1, whereas predators move at speed 2. Since movement energy cost scales with speed, predator movement is more expensive, reflecting the greater energetic cost of faster locomotion. Movement actions are not pre-masked at the policy-selection stage when they would lead outside the grid boundary; instead, such actions are allowed to be selected and simply fail harmlessly at execution time if they would take the agent out of bounds.
+
+The two non-movement actions are eat and idle. The idle action represents deliberate inaction for a single timestep. The eat action is shared as an action index across both species, but its logic is species-dependent. This is an important design choice because it preserves a common RL control structure while still allowing species roles to differ through their interaction with the environment.
+
+Notably, the actions do not include reproduction explicitly. Rather than being action-directed, reproduction is handled automatically by the environment when the conditions are met. This means that the action policy directly controls survival-oriented behavior, while longer-term population turnover is only indirectly shaped by what the learned policy enables.
+
+The action-selection mechanism also includes limited action masking. In particular, the eat action is removed from the valid action set when the discrete state indicates that no target is currently detected. This prevents agents from repeatedly selecting the eat action in states where no food or prey is locally available according to the observation model. No analogous masking is used for movement actions, which means that spatially invalid movement choices remain possible and are filtered only during execution. 
+
+Methodologically, the action space is intentionally compact. It contains enough structure to support ecologically meaningful local behavior, movement, feeding, and inactivity, without becoming too large for tabular Q-learning. At the same time, its simplicity also imposes limitations. Since reproduction is not an explicit action, the agent cannot learn reproductive timing as a direct policy choice. The action space should therefore be understood as a simplified ecological control interface suitable for proof-of-concept spatial predator–prey learning rather than as a complete behavioral model of real organisms.
+
+\subsubsection{Reward design}
+
+The reward system of the simulator is formulated as an event-based per-step reward function designed to combine individual survival incentives, species-specific ecological interaction signals, and reproductive success. At each timestep, the reward returned to the learning agent is not a single monolithic quantity, but the sum of several possible terms activated by the agent's action outcome and by the ecological state observed after the action. In general form, the step reward can be written as:
+
+\begin{equation}
+r_t = r_t^{\text{step}} + r_t^{\text{eat}} + r_t^{\text{detect}} + r_t^{\text{repr}} + r_t^{\text{death}}
+\end{equation}
+
+where $r_t^{\text{step}}$ is a generic step penalty, $r_t^{\text{eat}}$ is the feeding-related reward, $r_t^{\text{detect}}$ is a species-specific detection term, $r_t^{\text{repr}}$ is the reproduction reward, and $r_t^{\text{death}}$ is the terminal death penalty when applicable. Not every term is active at every step, but this decomposition describes the logic of the implemented reward structure.
+
+Let $\lambda_s <0$ denote the generic step penalty. The base event contribution can be written as
+
+\begin{equation}
+r_t^{\text{step}} = \lambda_s
+\end{equation}
+
+This term acts as a weak pressure against inefficient behavior and encourages agent to avoid unproductive action sequences. In addition to this base cost, the reward system includes species-specific feeding terms. For prey agents, eating grass yields a reward proportional to the energy gained from the consumed resource. If $E^{gain}_t$ denotes energy gained from food consumption and $\lambda_e$ the energy-reward scale, the prey feeding reward is
+
+\begin{equation}
+r_{t,\text{eat}}^{\text{prey}} = \lambda_e E_t^{\text{gain}}
+\end{equation}
+
+For predators, successful predation yields a reward based not on the prey's full energy but on a fixed transferred fraction of that energy. If $E^{prey}_t$ denotes the prey's energy prior to consumption, then the predator feeding reward is
+
+\begin{equation}
+r_{t,\text{eat}}^{\text{pred}} = \lambda_e \left(0.25\, E_t^{\text{prey}}\right) + \lambda_h
+\end{equation}
+
+where $\lambda_h$ is the hunting success bonus.
+
+The reward system also includes species-specific detection shaping. For prey, nearby predator detection introduces a penalty, whereas for predators, nearby prey detection introduces a bonus. Let $I^{det}_t \in \{0,1\}$ denote the relevant binary detection signal. Then the detection term can be written as
+
+\begin{equation}
+r_{t,\text{detect}}^{\text{prey}} = \lambda_p I_t^{\text{pred\_det}},
+\qquad \lambda_p < 0
+\end{equation}
+
+\begin{equation}
+r_{t,\text{detect}}^{\text{pred}} = \lambda_d I_t^{\text{prey\_det}},
+\qquad \lambda_d > 0
+\end{equation}
+
+For prey, this means that being locally exposed to predators is penalized. For predators, it means that successfully locating prey is rewarded even before a kill count. This makes the reward sensitive not only to consumption events, but also to ecologically meaningful awareness states.
+
+Death is treated as the strongest negative event in the system. If the learning agent dies, a fixed negative terminal penalty is applied. In mathematical notation, this reward can be written as
+
+\begin{equation}
+r_t^{\text{death}} =
+\begin{cases}
+\lambda_{\text{death}}, & \text{if the agent dies at step } t, \\
+0, & \text{otherwise}
+\end{cases}
+\qquad \lambda_{\text{death}} < 0
+\end{equation}
+
+A reproduction reward is also defined using $I_t^{\text{repr}}$, which denotes a successful reproduction event, and its contribution can be written as
+
+\begin{equation}
+r_t^{\text{repr}} = \lambda_r I_t^{\text{repr}},
+\qquad \lambda_r > 0
+\end{equation}
+
+Combining the above components, the implemented prey and predator rewards can be summarized as
+
+\begin{equation}
+r_t^{\text{prey}} =
+\lambda_s
++ \lambda_e E_t^{\text{gain}}
++ \lambda_p I_t^{\text{pred\_det}}
++ \lambda_r I_t^{\text{repr}}
++ r_t^{\text{death}}
+\end{equation}
+
+\begin{equation}
+r_t^{\text{pred}} =
+\lambda_s
++ \lambda_e \left(0.25\, E_t^{\text{prey}}\right)
++ \lambda_h
++ \lambda_d I_t^{\text{prey\_det}}
++ \lambda_r I_t^{\text{repr}}
++ r_t^{\text{death}}
+\end{equation}
+
+These expressions represent the intended effective reward structure at the learning level, with the note that not all terms are activated at every step.
+
+\subsubsection{Learning Algorithm}
+
+The learning component of the simulator is based on tabular Q-learning. As mentioned earlier, both prey and predator agents use the same Q-learning class, and each learning agent is associated with its own Q-table. States are represented as discrete tuples derived from the observation discretization already described, and each state maps to a vector of action values over the ten-action space. Unseen states are initialized lazily through a zero-valued default structure, which makes the learning system sparse and state-driven.
+
+The implemented update rule follows the standard off-policy Q-learning form. For a transition $(s_t, a_t, r_t, s_{t+1})$, the value update is
+
+\begin{equation}
+    Q(s_t, a_t) \leftarrow Q(s_t,a_t) + \alpha \left( r_t + \gamma \max_{a'} Q(s_{t+1}, a') - Q(s_t, a_t) \right)
+\end{equation}
+
+with the bootstrap term removed when the next state is terminal. Here, $\alpha$ denotes the learning rate and $\gamma$ the discount factor. Action selection during training is performed using an $\epsilon$-greedy policy, while evaluation uses greedy action selection with exploration disabled. The implementation also includes action masking for the eat action, which is removed from the valid action set when the discretized state indicates that no target is currently detected. 
+
+Although the core method is standard Q-learning, the implementation contains a few additional mechanisms that affect learning dynamics. First, when a state has no exact Q-table entry, the policy can fall back to the nearest known state as a heuristic for action selection. Second, the broader training setup supports policy persistence through save/load functions based on serialized Q-tables, allowing learned policies to be reused across training phases or experimental runs. These elements make the implementation more than a purely textbook tabular baseline, even though its core learning rule remains standard Q-learning.
+
+From a methodological perspective, this choice of algorithm is appropriate for the thesis because it provides a transparent and interpretable reinforcement learning baseline that can be directly linked to the discretized ecological state representation. At the same time, it should be noted that some of the theoretical convergence assumptions of single-agent tabular Q-learning are weakened in the multi-agent setting used here, since the effective environment may become non-stationary when multiple agents learn simultaneously. The algorithm should therefore be understood as a tractable proof-of-concept learning method for ecological simulation rather than as a guaranteed-convergent solution method in the full multi-agent case.
+
+\subsection{Multi-agent training setup}
+
+The training setup used in this thesis consists of two implemented protocols. The first is a 1v1 dual-agent setting in which one prey agent and one predator agent learn simultaneously in a minimal environment. The second, and primary, protocol is an alternating training setup in which only one focal agent learns at a time while the remaining agents act with frozen policies. This second protocol is used to produce the final policies analyzed in the study.
+
+In the 1v1 setting, both predator and prey maintain separate Q-tables and update them independently after each step. The environment contains exactly one prey and one predator, with no background population. Turn order alternates across episodes so that neither species systematically benefits from acting first. This protocol is used as a controlled warm-up stage in which basic pursuit and survival behavior can emerge in a simplified setting. 
+
+In the alternating training setup, learning is organized into cycles with two phases. In the first phase, the prey agent is the only learner, and the predator population is frozen. In the second phase, the predator agent becomes the only learner, and the prey population is frozen. The learning environment contains one focal agent together with background prey and predator agents. Background agents do not update their Q-values during the phase. Opponent agents use the frozen policy inherited from the previous phase, while same-species background agents use a frozen copy of the local learner's policy taken at the start of the phase. This design reduces non-stationarity during training by ensuring that only one policy changes at a time.
+
+Each episode follows the same basic structure. The environment is reset with a deterministic seed, actions are executed, ecological updates are applied, reproduction is resolved, and the focal learner performs a Q-update using the full reward returned for that step. This reward includes action-related terms and, when reproduction occurs, the reproduction bonus as well. Episodes terminate when the focal agent dies or when the predefined step limit is reached. Exploration follows an $\epsilon$-greedy schedule, with $\epsilon$ decaying once per episode rather than once per step. During evaluation, exploration is disabled, and the learned policy is run greedily without Q-updates.
+
+Methodologically, the alternating protocol is the main mechanism used to make tabular Q-learning tractable in a predator-prey setting. By freezing the opponent and same-species background agents within each phase, the focal learner experiences a more stable environment than it would under fully simultaneous multi-agent learning. This does not remove non-stationarity completely across the full training process, but it reduces it substantially and makes the learned policies more stable and interpretable for comparative analysis.
+
+\subsection{Case studies/datasets}
+
+This thesis uses two historical ecological datasets and one synthetic calibration scenario. The historical datasets are used exclusively for the ODE baseline, while the RL simulator is trained and evaluated in procedurally generated environments rather than on empirical ecological records. As a result, the case studies serve primarily as a classical reference system for parameter fitting, qualitative comparison, and analysis of the limits of aggregate ecological models.
+
+The first case study is the Hudson Bay hare-linx dataset, consisting of annual predator and prey population counts from 1900 to 1920. This is the main empirical benchmark used for fitting the Lotka-Volterra and logistic-prey models, and it provides the strongest classical baseline in the project because both models can reproduce its oscillatory behavior reasonably well. The second case study is the Isle Royale wolf-moose dataset, consisting of annual counts from 1959 to 2011. This dataset is also used for ODE fitting and analysis, but mainly as a stress case that highlights the limitations of deterministic predator-prey models under real ecological perturbations and structural breaks.
+
+In addition, the project includes an RL-calibrated synthetic scenario in which a logistic predator-prey model is parameterized approximately from the simulator configuration. This scenario is not fitted to empirical data and is not used for direct benchmarking. Its role is only illustrative; it provides a rough ODE-scale translation of the RL environment in order to examine how the simulator's ecological assumptions would look in a classical aggregate formulation. 
+
+Methodologically, these three cases play different roles. The hare-lynx dataset provides the main empirical ODE benchmark, Isle Royale is used to expose model limitations, and the RL-calibrated scenario serves as an approximate bridge between the classical and simulation-based parts of the thesis. None of them is directly used for RL training, which remains fully simulation-based.
+
+\subsection{Evaluation Metrics}
+
+The evaluation metrics used in this thesis are grouped into three categories: ODE model diagnostics, RL simulation diagnostics, and cross-model comparative metrics. These metrics are not identical across the two pipelines. Instead, the ODE models and the RL simulator are first evaluated within their own methodological context, after which comparison is performed through post-hoc fitting and diagnostic interpretation. 
+
+For the ODE baseline, evaluation is based primarly on model fit, model selection, and dynamical analysis. Model fit is quantified separately for predator and prey using root mean squared error (RMSE), while model selection between Lotka–Volterra and Rosenzweig–MacArthur is performed using the Akaike Information Criterion (AIC). In addition, the ODE analysis includes equilibrium and local stability analysis through Jacobian eigenvalues, phase portraits with nullclines, and parameter sensitivity analysis around the coexistence equilibrium. Together, these metrics are used to assess both empirical fit and qualitative dynamical structure.
+
+For the RL simulator, evaluation focuses on learning performance and long-horizon ecological behavior. During training, cumulative episode reward and episode outcome are logged to monitor convergence. After training, frozen policies are evaluated over long-horizon runs using per-step records of prey and predator populations, births, deaths, predation events, extinction status, and coexistence score. From these trajectories, additional summary metrics are derived, including population coefficient of variation, oscillation period, survival fraction, extinction step, demographic rates, and mean individual lifespan. These metrics are used to assess whether the learned policies produce stable and ecologically meaningful dynamics beyond short-term reward maximization.
+
+Cross-model comparison is performed by fitting discrete Lotka–Volterra parameters to RL-generated population trajectories. This allows RL dynamics to be expressed approximately in the same aggregate parameter space as the classical ODE models. The resulting fit provides a quantitative basis for comparing trajectory shape, oscillation behavior, and equilibrium tendency, even though the ODE and RL pipelines do not share a fully unified evaluation metric set.
+
+\subsection{Limitations of the methodology}
+
+This methodology has several limitations that should be made explicit when interpreting the results. First, the classical ODE baseline and the RL simulator do not represent the ecological system at the same level of abstraction. The ODE models are deterministic, population-level, and spatially homogeneous, whereas the RL simulator is discrete, spatially explicit, and based on individual agents. As a result, the comparison is necessarily between two different modeling paradigms rather than between two directly equivalent implementations of the same ecological process. 
+
+The ODE baseline is limited by its aggregate structure. It cannot represent local spatial interactions, within-species heterogeneity, or adaptive behavior. Its parameters are not fitted to a fully empirical ecological field setting, but are instead derived from simulator-based calibration or estimated from synthetic trajectories. This means that the ODE analysis is best interpreted as a benchmark for aggregate ecological dynamics within the project rather than as a biologically validated population model.
+
+
+The RL simulator is also a strong simplification of real ecological systems. Agents act on a coarse local state representation, the action space is intentionally limited, and the environment is procedurally generated rather than based on an empirical landscape. In addition, offspring inherit parental policies directly, which improves population continuity in the simulation but reduces biological realism. The resulting system is therefore suitable for studying learned predator-prey interaction in a controlled setting, but not for making strong claims about real ecosystem behavior.
+
+The learning setup introduces further limitations. Although alternating training reduces non-stationarity by freezing opponents within each phase, it remains only an approximation to the full multi-agent learning problem. Background agents do not adapt during a phase; same-species background policies can lag behind the focal learner, and no formal convergence criterion is imposed beyond the fixed training budget. Moreover, training and long-horizon evaluation are not conducted under exactly the same interaction structure, which introduces a distributional gap between learning and final assessment. 
+
+Finally, the comparison methodology itself remains partly indirect. The ODE and RL pipelines do not share a single common metric set, and there is no exact temporal alignment between continuous ODE time and discrete simulation steps. Cross-model comparison, therefore, relies on post-hoc fitting, trajectory interpretation, and qualitative dynamical correspondence rather than on a perfectly unified quantitative benchmark. For this reason, the results of the thesis should be interpreted as evidence about the comparative usefulness of two modeling approaches in a controlled experimental setting, rather than as a definitive one-to-one validation of one approach against the other.
+
+\section{Experimental setup} \label{experimental}
+
+\subsection{Experimental goals}
+
+The experiments in this thesis are designed to evaluate the behavior of the RL-based predator-prey simulator and to compare it with the classical ODE baseline under controlled conditions. More specifically, the experimental setup serves three main goals. First, it assesses whether the learned predator and prey policies generate coherent population dynamics over time, rather than only maximizing short-term reward at the individual level. Second, it examines whether these learned dynamics display ecologically meaningful properties such as persistence, oscillation, collapse, or coexistence. Third, it evaluates to what extent the resulting RL population behavior can be related to, approximated by, or contrasted with the dynamics produced by the classical ODE models.
+
+The experiments are therefore not intended merely as a benchmark of predictive accuracy. Instead, they are designed to study the extent to which reinforcement learning can function as a useful ecosystem modeling approach in its own right. In this sense, the goal is twofold: to evaluate the internal quality of the RL simulator as a learning-based ecological system, and to assess its value as a complementary modeling framework relative to the more interpretable but more constrained classical ecological baseline.
+
+At a practical level, this means that the experiments focus on three types of outcomes. The first is learning performance, including whether agents improve their policies over training. The second is ecological performance, including the stability and structure of the resulting predator-prey dynamics during long-horizon evaluation. The third is comparative performance, including the extent to which RL-generated trajectories can be interpreted in relation to fitted Lotka-Volterra-type population dynamics.
+
+\subsection{Compared setups}
+
+\subsubsection{ODE baseline}
+
+The ODE baseline used in the experiments consists of two classical predator-prey models: the standard Lotka-Volterra system and the logistic-prey extension corresponding to the Rosenzweig-MacArthur formulation. These models serve as the classical reference setup against which the RL-based simulator is interpreted. Their role in the experimental chapter is not to reproduce the full agent-based dynamics of the simulator, but to provide aggregate population-level benchmarks for trajectory fitting, equilibrium analysis, and dynamical comparison.
+
+Experimentally, the ODE baseline is applied in three contexts. First, both models are fitted to the historical hare-lynx dataset, which serves as the main empirical benchmark for predator-prey oscillatory dynamics. Second, both models are also fitted to the Isle Royale wolf-moose dataset, which is used as a more difficult case, highlighting the limitations of deterministic aggregate models under real ecological perturbations. Third, an RL-calibrated synthetic scenario is constructed by translating selected simulator parameters into approximate ODE coefficients, allowing the aggregate implications of the RL environment design to be examined in classical form.
+
+For each of these cases, the ODE analysis produces fitted trajectories for predator and prey populations, together with phase portraits, nullclines, equilibrium estimates, and sensitivity analyses. In this sense, the ODE baseline provides the experimental reference for classical ecological behavior, against which the population-level dynamics generated by the RL simulator can later be compared.
+
+\subsubsection{RL setup}
+
+The RL setup used in the experiments consists of a spatial predator-prey simulator in which agents interact in a discrete grid environment and learn behavior through tabular Q-learning. Unlike the ODE baseline, which represents populations at the aggregate level, the RL setup models the system through individual predator and prey agents whose local interactions generate population-level dynamics over time. The experimental role of this setup is to determine whether learned policies can produce coherent ecological behavior, including survival, predation, reproduction, and long-term coexistence.
+
+Experimentally, the RL setup is based on two training configurations. The first is a simplified 1v1 warm-up setting with one predator and one prey, used to support the emergence of basic pursuit and escape behavior under minimal conditions. The second, and primary, configuration is the alternating multi-agent training protocol, in which one focal learner is trained at a time against frozen background populations. This second setup is the main source of the policies later used for long-horizon evaluation and comparison with the ODE baseline.
+
+The RL experiments are conducted entirely in procedurally generated environments rather than on empirical ecological datasets. As a result, the RL setup is evaluated through its internal learning performance and through the ecological structure of the population dynamics it produces during long-horizon rollouts. In this sense, the RL setup functions as the experimental learning-based counterpart to the classical ODE baseline: it is the system through which the thesis studies whether adaptive agent behavior can serve as a useful complementary framework for ecosystem modeling.
+
+\subsection{Training and evaluation configuration}
+
+\subsubsection{Hyperparameters}
+
+The RL experiments use a common tabular Q-learning configuration together with a small number of protocol-specific overrides. At the global level, the learning rate is set to $\alpha = 0.1$, the discount factor to $\gamma = 0.95$, the default exploration schedule to $\epsilon_{start} = 1.0, \epsilon_{decay} = 0.995$, and $\epsilon_{min} = 0.01$. The tabular state representation contains 540 discrete states, derived from the six-dimensional observation discretization, and the action space contains 10 actions. The standard episode horizon is 500 steps.
+
+The 1v1 warm-up protocol uses the predefined parameters, and it is a one-versus-one training between the predator and prey that is run before starting the complete population training. This protocol also uses a shorter episode horizon of 350 steps. These values are chosen to make early learning in the minimal predator-prey setting less noisy and to encourage faster emergence of basic pursuit and escape behavior.
+
+In the alternating training protocol, the default Q-learning hyperparameters are retained, but two additional exploration settings are used operationally. First, background agents that act with frozen policies use a near-greedy exploration rate of 0.01. Second, when a checkpoint is loaded between cycles, its effective $\epsilon$ value is capped at 0.3, since exploration is not serialized with the saved Q-table. This prevents previously learned policies from being reset into full re-exploration at the start of a new cycle.
+
+The experimental population and environment settings are also fixed. The 1v1 protocol is run on a $100×100$ grid with one prey and one predator. The main alternating protocol uses a $150×150$ grid with 30 prey and 10 predators. Training is typically organized into 500 episodes per phase, with the total number of cycles chosen experimentally depending on the run. These values define the practical scale at which the RL experiments are conducted.
+
+\subsubsection{Training settings}
+
+Two training configurations are used in the experiments. The first is a simplified 1v1 warm-up protocol, and the second is the main alternating multi-agent protocol. Together, they provide a staged training procedure in which basic predator-prey behavior is first learned in a minimal setting and then transferred to a richer ecological environment.
+
+In the 1v1 warm-up protocol, one prey agent and one predator agent are trained simultaneously on a $100×100$ grid with no background population and no reproduction. Each episode ends either when the predator kills the prey or when the maximum horizon of 350 steps is reached. Both agents update their Q-tables after every step, and turn order alternates across episodes so that neither species systematically benefits from acting first. This protocol is generally run for 1500 episodes and is used to generate an initial checkpoint for the main training stage.
+
+The primary training procedure is the alternating protocol, which uses the full $150×150$ environment with 30 prey and 10 predators. Training is organized into cycles, each composed of two phases. In the first phase, the prey agent is the focal learner, and the predator population is frozen. In the second phase, the predator agent becomes the focal learner, and the prey population is frozen. Background agents act during every step but do not update their Q-values. Opponent agents use the frozen policy inherited from the previous phase, while same-species background agents use a frozen copy of the focal learner’s policy taken at the start of the phase. This reduces non-stationarity by ensuring that only one policy changes during a given phase.
+
+Each phase runs for 500 episodes, unless stated otherwise, and the total number of cycles is chosen experimentally depending on the run. Within each episode, the environment is reset with a deterministic seed, actions are executed, ecological updates are applied, reproduction is resolved, and the focal learner performs a Q-update using the full reward returned for that step. This reward includes both immediate action-related terms and the reproduction bonus when reproduction occurs. Training does not use early stopping; each run proceeds until the configured episode budget is exhausted.
+
+This training design combines simplicity and stability. The 1v1 protocol supports the emergence of basic local strategies, while the alternating protocol makes tabular Q-learning more tractable in the larger multi-agent setting by freezing the opponent and background policies within each phase. The result is a training process that does not eliminate non-stationarity, but reduces it enough to produce stable checkpoints for later long-horizon evaluation.
+
+\subsubsection{Evaluation procedure}
+
+Evaluation is performed at two levels: within-training evaluation and post-training long-horizon evaluation. Together, these two procedures are used to assess both short-term policy quality and the longer-term ecological dynamics generated by the learned predator-prey interactions.
+
+During training, evaluation is carried out in greedy mode with exploration disabled. In the alternating protocol, a short evaluation is performed at the end of each phase by temporarily setting $\epsilon=0$ and running 10 evaluation episodes without Q-updates. The resulting average reward is logged as a phase-level performance indicator. In the 1v1 warm-up protocol, meaningful greedy evaluation is performed only after training has been completed.
+
+The main experimental evaluation is conducted after training using frozen prey and predator checkpoints. In this stage, both species act greedily with $\epsilon=0$, and no learning updates are performed. The evaluation is run in the multi-agent environment rather than the single-focal-agent training wrapper, allowing the learned policies to be tested under full population dynamics. Each checkpoint pair is evaluated across three independent random seeds, and each run lasts up to 2000 steps.
+
+During long-horizon evaluation, the simulator records per-step information on predator and prey population sizes, energy distributions, births, deaths, predation events, extinction status, and coexistence score. From these trajectories, a set of summary metrics is derived, including population coefficient of variation, oscillation period, survival fraction, extinction step, demographic rates, and mean individual lifespan. In this way, the evaluation procedure is designed not only to measure immediate policy performance but also to determine whether the learned policies produce stable and ecologically interpretable system-level dynamics over extended horizons.
+
+\subsubsection{Checkpoint selection}
+
+Checkpoints are saved at the end of each phase of the alternating training protocol, with prey and predator policies stored separately. This means that each cycle produces one prey checkpoint after the prey-training phase and one predator checkpoint after the predator-training phase. The saved files contain the learned Q-table together with basic metadata such as the state and action dimensions, and a small configuration snapshot. The exploration state is not serialized, so checkpoints preserve learned values but not the current $\epsilon$ level.
+
+In experimental practice, checkpoints are not selected through an explicit model-selection criterion such as best evaluation reward or best coexistence score. Instead, the final evaluation uses the most recent completed checkpoint available for each species. In this sense, checkpoint selection is based on the training stage rather than on post-hoc optimization over many saved models. This keeps the evaluation procedure simple and consistent with the staged training design.
+
+Checkpoints also play an operational role during training. In the alternating protocol, the policy learned in one phase is carried forward as the frozen opponent in the next phase. When checkpoints are reloaded between training stages, the effective exploration rate is manually controlled, since the saved files do not store $\epsilon$. As a result, checkpoints function both as final experimental artifacts for evaluation and as intermediate policy carriers within the alternating training process
+
+\subsection{Data collection and logging}
+
+The experimental pipeline records data at both training time and evaluation time. During training, episode-level logs are used to monitor learning progress. These include cumulative reward, episode outcome, and protocol-specific evaluation summaries. In the alternating protocol, greedy evaluation scores are also recorded at phase boundaries, providing a compact indication of policy quality without exploration noise.
+
+For post-training evaluation, data collection is more detailed. Long-horizon runs record per-step information on prey and predator population sizes, coexistence score, energy distribution statistics, cumulative births, cumulative deaths, and predation events. These per-step records are written to CSV files and later aggregated into per-seed summary tables. From the logged trajectories, additional derived quantities are computed, including population coefficient of variation, oscillation period, survival fraction, extinction step, demographic rates, and mean individual lifespan.
+
+Model checkpoints are also part of the experimental record. Prey and predator Q-tables are saved separately at the end of each training phase, allowing policies to be reused, evaluated, and compared across cycles. Taken together, the logging system supports three complementary functions: monitoring training behavior, evaluating long-horizon ecological dynamics, and preserving intermediate and final learned policies for later analysis.
+
+\subsection{Reproducibility details}
+
+The experimental pipeline is designed to be reproducible through fixed configuration values, deterministic seeding, and explicit checkpointing. Training episodes use deterministic seed formulas that vary systematically across runs, cycles, phases, and episodes, so that each episode is distinct while remaining reproducible. Evaluation is also performed under controlled seeds, with long-horizon rollouts repeated across three independent seed values.
+
+Reproducibility is further supported through serialized checkpoints. Prey and predator policies are saved separately as pickle files containing the learned Q-tables, state and action dimensions, and a configuration snapshot. These checkpoints allow training to be resumed, evaluation to be repeated, and trained policy pairs to be reused consistently across experiments.
+
+At the same time, some implementation details place limits on strict reproducibility. In particular, the exploration parameter $\epsilon$ is not serialized with saved checkpoints and must therefore be controlled manually when models are reloaded. In addition, training and long-horizon evaluation are run in different environment wrappers, which means that policies are reproduced across experiments but not always under identical step-order semantics. For this reason, reproducibility in this thesis should be understood primarily as reproducibility of the experimental pipeline and logged outputs, rather than as exact identity of all internal simulator conditions across every stage.
+
+\section{Results} \label{results}
+
+\subsection{Training behavior}
+
+\subsection{Population dynamics in the RL simulation}
+
+\subsection{Comparison with the ODE baselines}
+
+\subsection{Robustness under perturbations}
+
+\subsection{Case-study observations}
+
+\subsection{Summary of findings}
+
+\section{Discussion} \label{discussion}
+
+\subsection{Interpretation of results}
+
+\subsection{Does RL provide advantages over classical models?}
+
+\subsection{Ecological realism and limitations}
+
+\subsection{Policy relevance of the findings}
+
+\subsection{Technical limitations of the simulator}
+
+\subsection{Suggestions for future work}
+
+\section{Conclusion} \label{conclusion}
+
+\subsection{Answer to the research question}
+
+\subsection{Main contributions}
+
+\subsection{Final remarks}
+
+
+
+
+\bibliographystyle{plain}
+\bibliography{bibliography}
+\addcontentsline{toc}{section}{References}
+
+%\appendix
+%appendices here --- if any
+
+\end{document}

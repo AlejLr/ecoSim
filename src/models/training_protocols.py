@@ -269,7 +269,7 @@ class FixedOpponentProtocol(TrainingProtocol):
         print(f"Environment: 1 prey, 1 predator | no background prey | Episode ends on predation or {ONE_V_ONE_STEPS} steps")
         print(f"{'='*70}\n")
 
-        protocol1_epsilon_start = 0.10
+        protocol1_epsilon_start = 1.0
         protocol1_epsilon_decay = 0.9985
         protocol1_epsilon_min = 0.02
         protocol1_predation_bonus = 5.0

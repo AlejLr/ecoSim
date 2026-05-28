@@ -1,8 +1,4 @@
-"""Shared population-coexistence scoring helpers.
-
-These helpers are used both for reward shaping and checkpoint ranking so
-training and evaluation optimize the same objective.
-"""
+"""Population coexistence scoring helpers. Used for evaluation only — not for reward shaping."""
 
 from __future__ import annotations
 
