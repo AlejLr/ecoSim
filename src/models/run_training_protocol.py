@@ -105,17 +105,29 @@ def main():
     # Protocol 2: Alternating Training
     elif command == "2":
         if len(sys.argv) < 4:
-            print("Usage: python -m src.models.run_training_protocol 2 [cycles] [episodes_per_cycle] [new]")
+            print("Usage: python -m src.models.run_training_protocol 2 [cycles] [episodes_per_cycle] [new|--resume-prey <path> --resume-pred <path>]")
             sys.exit(1)
-        
+
         num_cycles = int(sys.argv[2])
         num_episodes = int(sys.argv[3])
         start_from_latest = True
+        resume_prey = None
+        resume_predator = None
+
         if len(sys.argv) >= 5 and sys.argv[4].strip().lower() == "new":
             start_from_latest = False
-        
+        if "--resume-prey" in sys.argv:
+            idx = sys.argv.index("--resume-prey")
+            resume_prey = sys.argv[idx + 1]
+            start_from_latest = False
+        if "--resume-pred" in sys.argv:
+            idx = sys.argv.index("--resume-pred")
+            resume_predator = sys.argv[idx + 1]
+            start_from_latest = False
+
         protocol = AlternatingTrainingProtocol("", num_episodes, run_number)
-        result = protocol.train(num_cycles=num_cycles, start_from_latest=start_from_latest)
+        result = protocol.train(num_cycles=num_cycles, start_from_latest=start_from_latest,
+                                resume_prey=resume_prey, resume_predator=resume_predator)
         
         print(f"\n{'='*70}")
         print(f"PROTOCOL 2 COMPLETE")

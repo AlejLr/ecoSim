@@ -394,19 +394,19 @@ This thesis is positioned precisely within that gap. It does not attempt to repl
 
 \subsection{Research design overview}
 
-This thesis adopts a comparative computational modeling design to study predator-prey ecosystem dynamics. It compares a classical ecological baseline based on ordinary differential equations with a reinforcement-learning-based ecosystem simulator in which predator and prey agents interact within a spatial environment and adapt their behavior through experience. The purpose of this design is to assess whether a learning-based simulation framework can provide a useful complementary perspective to classical ecological modeling.
+This thesis adopts a comparative computational modeling design to study predator-prey ecosystem dynamics. It compares a classical ecological baseline based on ordinary differential equations with a reinforcement-learning-based ecosystem simulator in which predator and prey agents interact within a spatial environment and adapt their behavior through experience. The purpose of this design is to assess whether a learning-based simulation framework can provide a useful complementary perspective to classical ecological modeling \cite{Duarte2004, Lapeyrolerie2022}.
 
-The study is both comparative and exploratory. It is comparative because both modeling approaches are examined within the same general predator-prey setting. It is exploratory because the thesis does not assume in advance that one modeling paradigm is universally superior, but instead investigates the kinds of ecological behavior each can represent and the assumptions under which those behaviors emerge.
+The study is both comparative and exploratory. It is comparative because both modeling approaches are examined within the same general predator-prey setting. It is exploratory because the thesis does not assume in advance that one modeling paradigm is universally superior, but instead investigates the kinds of ecological behavior each can represent and the assumptions under which those behaviors emerge \cite{CoReyes2020}.
 
-Overall, the methodology should be understood as a proof-of-concept framework for examining the role of reinforcement learning in ecosystem simulation. It does not attempt to replace classical ecological models or to construct a fully realistic environmental decision-support system. Rather, it provides a structured way to study whether an RL-based predator-prey simulator can capture relevant ecological dynamics and offer useful insight alongside a classical aggregate baseline.
+Overall, the methodology should be understood as a proof-of-concept framework for examining the role of reinforcement learning in ecosystem simulation. It does not attempt to replace classical ecological models or to construct a fully realistic environmental decision-support system. Rather, it provides a structured way to study whether an RL-based predator-prey simulator can capture relevant ecological dynamics and offer useful insight alongside a classical aggregate baseline \cite{Kingsland1982, Singh2024, Park2021}.
 
 \subsection{General comparison framework}
 
-The comparison is carried out in a controlled predator-prey context and is organized around two distinct modeling setups. The first is a classical ODE baseline, which represents predator and prey populations through continuous state variables and fixed interaction terms. The second is an RL-based simulator, which represents the same ecological setting through individual agents, local interactions, and learned decision-making.
+The comparison is carried out in a controlled predator-prey context and is organized around two distinct modeling setups. The first is a classical ODE baseline that represents predator and prey populations using continuous state variables and fixed interaction terms. The second is an RL-based simulator, which represents the same ecological setting through individual agents, local interactions, and learned decision-making.
 
 The framework compares these two setups under matched ecological conditions as far as possible. The goal is not to force exact equivalence between two fundamentally different formalisms, but to evaluate how they differ in the dynamics they generate and in the assumptions through which those dynamics arise.
 
-The comparison includes both quantitative and qualitative elements. Quantitatively, it examines outputs such as population trajectories, persistence or extinction behavior, and other measures related to system stability. Qualitatively, it considers the overall character of the resulting dynamics, including oscillatory behavior, coexistence patterns, and the extent to which the RL-based model generates adaptive ecological interaction that is not directly imposed by the baseline equations.
+The comparison includes both quantitative and qualitative elements. Quantitatively, it examines outputs such as population trajectories, persistence or extinction behavior, and other measures related to system stability. Qualitatively, it considers the overall character of the resulting dynamics, including oscillatory behavior, coexistence patterns, and the extent to which the RL-based model generates adaptive ecological interaction that is not directly imposed by the baseline equations \cite{Rykiel1996, Augusiak2014}.
 
 \subsection{Classical ecological baseline}
 
@@ -439,13 +439,13 @@ Both models are used to generate classical reference outputs, including fitted p
 
 \subsubsection{Assumptions and parameters}
 
-The ODE baseline is built on a set of assumptions that distinguish it clearly from the RL-based simulation. First, both models are formulated in continuous time and solved numerically using a deterministic ODE solver. Second, predator and prey are represented as homogeneous, well-mixed populations, rather than individuals. Third, the interaction coefficients are fixed throughout each simulation, so the models do not represent adaptation, local decision-making, or time-varying ecological behavior. Finally, spatial structure, environmental stochasticity, and individual heterogeneity are absent from the ODE formulation. These assumptions are appropriate for a classical benchmark, but they also delimit the ecological mechanisms that the baseline can represent.
+The ODE baseline is built on a set of assumptions that distinguish it clearly from the RL-based simulation. First, both models are formulated in continuous time and solved numerically using a deterministic ODE solver. Second, predator and prey are represented as homogeneous, well-mixed populations, rather than individuals. Third, the interaction coefficients are fixed throughout each simulation, so the models do not represent adaptation, local decision-making, or time-varying ecological behavior. Finally, spatial structure, environmental stochasticity, and individual heterogeneity are absent from the ODE formulation. These assumptions are appropriate for a classical benchmark, but they also delimit the ecological mechanisms that the baseline can represent \cite{Duarte2004, Cosme2023, Coskun2019}.
 
-The parameters of the two models follow their standard biological interpretations. In the Lotka-Volterra system, the fitted parameters are prey birth rate $\alpha$, predation rate $\beta$, predator conversion efficiency $\delta$, and predator mortality $\gamma$. In the logistic-prey system, the fitted parameters are the same, but with the introduction of the prey growth rate $r$ and the prey carrying capacity $K$. In addition to these ecological coefficients, the ODE analysis also specifies numerical-simulation parameters such as solver type, tolerance settings, number of output points, initial conditions, and simulation horizon.
+The parameters of the two models follow their standard biological interpretations. In the Lotka-Volterra system, the fitted parameters are prey birth rate $\alpha$, predation rate $\beta$, predator conversion efficiency $\delta$, and predator mortality $\gamma$. In the logistic-prey system, the fitted parameters are the same, but with the introduction of the prey growth rate $r$ and the prey carrying capacity $K$. In addition to these ecological coefficients, the ODE analysis also specifies numerical-simulation parameters such as solver type, tolerance settings, number of output points, initial conditions, and simulation horizon \cite{Singh2024, Bradshaw2023}.
 
 Parameter selection in the implemented ODE analysis follows two different strategies. For the historical hare–lynx and Isle Royale case studies, parameters are obtained by numerical fitting using differential evolution, with model quality assessed through trajectory fit and information criteria. For the RL-calibrated ODE scenario, parameters are instead derived analytically from the RL simulator configuration, using approximate translations from grid-world quantities such as carrying capacity, action radius, step horizon, and energy decay. This produces an illustrative ODE parameterization grounded in the simulator design rather than in historical ecological data.
 
-Methodologically, several limitations of these parameter choices are important. The logistic-prey model does not always behave as a substantively distinct model from standard Lotka–Volterra, since fitted carrying-capacity values can collapse toward the optimization boundary, effectively removing the logistic constraint. Likewise, some ecological regimes, most notably the Isle Royale wolf crash, cannot be reproduced well by either deterministic ODE model because they reflect structural breaks outside the scope of fixed-parameter aggregate equations. Finally, the RL-calibrated ODE parameters should be interpreted as approximate scale translations rather than as validated ecological estimates. For this reason, the ODE baseline is used in the thesis primarily as a classical comparative benchmark rather than as a fully realistic ecological forecasting model.
+Methodologically, several limitations of these parameter choices are important. The logistic-prey model does not always behave as a substantively distinct model from standard Lotka–Volterra, since fitted carrying-capacity values can collapse toward the optimization boundary, effectively removing the logistic constraint. Likewise, some ecological regimes, most notably the Isle Royale wolf crash, cannot be reproduced well by either deterministic ODE model because they reflect structural breaks outside the scope of fixed-parameter aggregate equations. Finally, the RL-calibrated ODE parameters should be interpreted as approximate scale translations rather than as validated ecological estimates. For this reason, the ODE baseline is used in the thesis primarily as a classical comparative benchmark rather than as a fully realistic ecological forecasting model \cite{Peterson1999, Stenseth1997, Stenseth1998}.
 
 \subsection{RL-based simulation approach}
 
@@ -658,7 +658,7 @@ These expressions represent the intended effective reward structure at the learn
 
 \subsubsection{Learning Algorithm}
 
-The learning component of the simulator is based on tabular Q-learning. As mentioned earlier, both prey and predator agents use the same Q-learning class, and each learning agent is associated with its own Q-table. States are represented as discrete tuples derived from the observation discretization already described, and each state maps to a vector of action values over the ten-action space. Unseen states are initialized lazily through a zero-valued default structure, which makes the learning system sparse and state-driven.
+The learning component of the simulator is based on tabular Q-learning. As mentioned earlier, both prey and predator agents use the same Q-learning class, and each learning agent is associated with its own Q-table. States are represented as discrete tuples derived from the observation discretization already described, and each state maps to a vector of action values over the ten-action space. Unseen states are initialized lazily through a zero-valued default structure, which makes the learning system sparse and state-driven \cite{Watkins1992}.
 
 The implemented update rule follows the standard off-policy Q-learning form. For a transition $(s_t, a_t, r_t, s_{t+1})$, the value update is
 
@@ -668,9 +668,9 @@ The implemented update rule follows the standard off-policy Q-learning form. For
 
 with the bootstrap term removed when the next state is terminal. Here, $\alpha$ denotes the learning rate and $\gamma$ the discount factor. Action selection during training is performed using an $\epsilon$-greedy policy, while evaluation uses greedy action selection with exploration disabled. The implementation also includes action masking for the eat action, which is removed from the valid action set when the discretized state indicates that no target is currently detected. 
 
-Although the core method is standard Q-learning, the implementation contains a few additional mechanisms that affect learning dynamics. First, when a state has no exact Q-table entry, the policy can fall back to the nearest known state as a heuristic for action selection. Second, the broader training setup supports policy persistence through save/load functions based on serialized Q-tables, allowing learned policies to be reused across training phases or experimental runs. These elements make the implementation more than a purely textbook tabular baseline, even though its core learning rule remains standard Q-learning.
+Although the core method is standard Q-learning, the implementation contains a few additional mechanisms that affect learning dynamics. First, when a state has no exact Q-table entry, the policy can fall back to the nearest known state as a heuristic for action selection. Second, the broader training setup supports policy persistence through save/load functions based on serialized Q-tables, allowing learned policies to be reused across training phases or experimental runs. These elements make the implementation more than a purely textbook tabular baseline, even though its core learning rule remains standard Q-learning \cite{Huh2023, Gronauer2022}.
 
-From a methodological perspective, this choice of algorithm is appropriate for the thesis because it provides a transparent and interpretable reinforcement learning baseline that can be directly linked to the discretized ecological state representation. At the same time, it should be noted that some of the theoretical convergence assumptions of single-agent tabular Q-learning are weakened in the multi-agent setting used here, since the effective environment may become non-stationary when multiple agents learn simultaneously. The algorithm should therefore be understood as a tractable proof-of-concept learning method for ecological simulation rather than as a guaranteed-convergent solution method in the full multi-agent case.
+From a methodological perspective, this choice of algorithm is appropriate for the thesis because it provides a transparent and interpretable reinforcement learning baseline that can be directly linked to the discretized ecological state representation. At the same time, it should be noted that some of the theoretical convergence assumptions of single-agent tabular Q-learning are weakened in the multi-agent setting used here, since the effective environment may become non-stationary when multiple agents learn simultaneously. The algorithm should therefore be understood as a tractable proof-of-concept learning method for ecological simulation rather than as a guaranteed-convergent solution method in the full multi-agent case \cite{Watkins1992, Gronauer2022, Huh2023}.
 
 \subsection{Multi-agent training setup}
 
@@ -678,17 +678,17 @@ The training setup used in this thesis consists of two implemented protocols. Th
 
 In the 1v1 setting, both predator and prey maintain separate Q-tables and update them independently after each step. The environment contains exactly one prey and one predator, with no background population. Turn order alternates across episodes so that neither species systematically benefits from acting first. This protocol is used as a controlled warm-up stage in which basic pursuit and survival behavior can emerge in a simplified setting. 
 
-In the alternating training setup, learning is organized into cycles with two phases. In the first phase, the prey agent is the only learner, and the predator population is frozen. In the second phase, the predator agent becomes the only learner, and the prey population is frozen. The learning environment contains one focal agent together with background prey and predator agents. Background agents do not update their Q-values during the phase. Opponent agents use the frozen policy inherited from the previous phase, while same-species background agents use a frozen copy of the local learner's policy taken at the start of the phase. This design reduces non-stationarity during training by ensuring that only one policy changes at a time.
+In the alternating training setup, learning is organized into cycles with two phases. In the first phase, the prey agent is the only learner, and the predator population is frozen. In the second phase, the predator agent becomes the only learner, and the prey population is frozen. The learning environment contains one focal agent together with background prey and predator agents. Background agents do not update their Q-values during the phase. Opponent agents use the frozen policy inherited from the previous phase, while same-species background agents use a frozen copy of the local learner's policy taken at the start of the phase. This design reduces non-stationarity during training by ensuring that only one policy changes at a time \cite{Amato2024, Sharma2021}.
 
 Each episode follows the same basic structure. The environment is reset with a deterministic seed, actions are executed, ecological updates are applied, reproduction is resolved, and the focal learner performs a Q-update using the full reward returned for that step. This reward includes action-related terms and, when reproduction occurs, the reproduction bonus as well. Episodes terminate when the focal agent dies or when the predefined step limit is reached. Exploration follows an $\epsilon$-greedy schedule, with $\epsilon$ decaying once per episode rather than once per step. During evaluation, exploration is disabled, and the learned policy is run greedily without Q-updates.
 
-Methodologically, the alternating protocol is the main mechanism used to make tabular Q-learning tractable in a predator-prey setting. By freezing the opponent and same-species background agents within each phase, the focal learner experiences a more stable environment than it would under fully simultaneous multi-agent learning. This does not remove non-stationarity completely across the full training process, but it reduces it substantially and makes the learned policies more stable and interpretable for comparative analysis.
+Methodologically, the alternating protocol is the main mechanism used to make tabular Q-learning tractable in a predator-prey setting. By freezing the opponent and same-species background agents within each phase, the focal learner experiences a more stable environment than it would under fully simultaneous multi-agent learning. This does not remove non-stationarity completely across the full training process, but it reduces it substantially and makes the learned policies more stable and interpretable for comparative analysis \cite{Amato2024, Gronauer2022}.
 
 \subsection{Case studies/datasets}
 
 This thesis uses two historical ecological datasets and one synthetic calibration scenario. The historical datasets are used exclusively for the ODE baseline, while the RL simulator is trained and evaluated in procedurally generated environments rather than on empirical ecological records. As a result, the case studies serve primarily as a classical reference system for parameter fitting, qualitative comparison, and analysis of the limits of aggregate ecological models.
 
-The first case study is the Hudson Bay hare-linx dataset, consisting of annual predator and prey population counts from 1900 to 1920. This is the main empirical benchmark used for fitting the Lotka-Volterra and logistic-prey models, and it provides the strongest classical baseline in the project because both models can reproduce its oscillatory behavior reasonably well. The second case study is the Isle Royale wolf-moose dataset, consisting of annual counts from 1959 to 2011. This dataset is also used for ODE fitting and analysis, but mainly as a stress case that highlights the limitations of deterministic predator-prey models under real ecological perturbations and structural breaks.
+The first case study is the Hudson Bay hare-linx dataset, consisting of annual predator and prey population counts from 1900 to 1920 \cite{Stenseth1997, Stenseth1998, Tyson2010}. This is the main empirical benchmark used for fitting the Lotka-Volterra and logistic-prey models, and it provides the strongest classical baseline in the project because both models can reproduce its oscillatory behavior reasonably well. The second case study is the Isle Royale wolf-moose dataset, consisting of annual counts from 1959 to 2011 \cite{Peterson1999, McLaren1994}. This dataset is also used for ODE fitting and analysis, but mainly as a stress case that highlights the limitations of deterministic predator-prey models under real ecological perturbations and structural breaks.
 
 In addition, the project includes an RL-calibrated synthetic scenario in which a logistic predator-prey model is parameterized approximately from the simulator configuration. This scenario is not fitted to empirical data and is not used for direct benchmarking. Its role is only illustrative; it provides a rough ODE-scale translation of the RL environment in order to examine how the simulator's ecological assumptions would look in a classical aggregate formulation. 
 
@@ -696,9 +696,9 @@ Methodologically, these three cases play different roles. The hare-lynx dataset 
 
 \subsection{Evaluation Metrics}
 
-The evaluation metrics used in this thesis are grouped into three categories: ODE model diagnostics, RL simulation diagnostics, and cross-model comparative metrics. These metrics are not identical across the two pipelines. Instead, the ODE models and the RL simulator are first evaluated within their own methodological context, after which comparison is performed through post-hoc fitting and diagnostic interpretation. 
+The evaluation metrics used in this thesis are grouped into three categories: ODE model diagnostics, RL simulation diagnostics, and cross-model comparative metrics. These metrics are not identical across the two pipelines. Instead, the ODE models and the RL simulator are first evaluated within their own methodological context, after which comparison is performed through post-hoc fitting and diagnostic interpretation \cite{Augusiak2014, Rykiel1996}. 
 
-For the ODE baseline, evaluation is based primarly on model fit, model selection, and dynamical analysis. Model fit is quantified separately for predator and prey using root mean squared error (RMSE), while model selection between Lotka–Volterra and Rosenzweig–MacArthur is performed using the Akaike Information Criterion (AIC). In addition, the ODE analysis includes equilibrium and local stability analysis through Jacobian eigenvalues, phase portraits with nullclines, and parameter sensitivity analysis around the coexistence equilibrium. Together, these metrics are used to assess both empirical fit and qualitative dynamical structure.
+For the ODE baseline, evaluation is based primarily on model fit, model selection, and dynamical analysis. Model fit is quantified separately for predator and prey using root mean squared error (RMSE), while model selection between Lotka–Volterra and Rosenzweig–MacArthur is performed using the Akaike Information Criterion (AIC). In addition, the ODE analysis includes equilibrium and local stability analysis through Jacobian eigenvalues, phase portraits with nullclines, and parameter sensitivity analysis around the coexistence equilibrium. Together, these metrics are used to assess both empirical fit and qualitative dynamical structure \cite{Rykiel1996, DiRenzo2023}.
 
 For the RL simulator, evaluation focuses on learning performance and long-horizon ecological behavior. During training, cumulative episode reward and episode outcome are logged to monitor convergence. After training, frozen policies are evaluated over long-horizon runs using per-step records of prey and predator populations, births, deaths, predation events, extinction status, and coexistence score. From these trajectories, additional summary metrics are derived, including population coefficient of variation, oscillation period, survival fraction, extinction step, demographic rates, and mean individual lifespan. These metrics are used to assess whether the learned policies produce stable and ecologically meaningful dynamics beyond short-term reward maximization.
 
@@ -706,16 +706,16 @@ Cross-model comparison is performed by fitting discrete Lotka–Volterra paramet
 
 \subsection{Limitations of the methodology}
 
-This methodology has several limitations that should be made explicit when interpreting the results. First, the classical ODE baseline and the RL simulator do not represent the ecological system at the same level of abstraction. The ODE models are deterministic, population-level, and spatially homogeneous, whereas the RL simulator is discrete, spatially explicit, and based on individual agents. As a result, the comparison is necessarily between two different modeling paradigms rather than between two directly equivalent implementations of the same ecological process. 
+This methodology has several limitations that should be made explicit when interpreting the results. First, the classical ODE baseline and the RL simulator do not represent the ecological system at the same level of abstraction. The ODE models are deterministic, population-level, and spatially homogeneous, whereas the RL simulator is discrete, spatially explicit, and based on individual agents. As a result, the comparison is necessarily between two different modeling paradigms rather than between two directly equivalent implementations of the same ecological process \cite{Duarte2004, Cosme2023}. 
 
-The ODE baseline is limited by its aggregate structure. It cannot represent local spatial interactions, within-species heterogeneity, or adaptive behavior. Its parameters are not fitted to a fully empirical ecological field setting, but are instead derived from simulator-based calibration or estimated from synthetic trajectories. This means that the ODE analysis is best interpreted as a benchmark for aggregate ecological dynamics within the project rather than as a biologically validated population model.
+The ODE baseline is limited by its aggregate structure. It cannot represent local spatial interactions, within-species heterogeneity, or adaptive behavior. Its parameters are not fitted to a fully empirical ecological field setting, but are instead derived from simulator-based calibration or estimated from synthetic trajectories. This means that the ODE analysis is best interpreted as a benchmark for aggregate ecological dynamics within the project rather than as a biologically validated population model \cite{Duarte2004, Banitz2022}.
 
 
-The RL simulator is also a strong simplification of real ecological systems. Agents act on a coarse local state representation, the action space is intentionally limited, and the environment is procedurally generated rather than based on an empirical landscape. In addition, offspring inherit parental policies directly, which improves population continuity in the simulation but reduces biological realism. The resulting system is therefore suitable for studying learned predator-prey interaction in a controlled setting, but not for making strong claims about real ecosystem behavior.
+The RL simulator is also a strong simplification of real ecological systems. Agents act on a coarse local state representation, the action space is intentionally limited, and the environment is procedurally generated rather than based on an empirical landscape. In addition, offspring inherit parental policies directly, which improves population continuity in the simulation but reduces biological realism. The resulting system is therefore suitable for studying learned predator-prey interaction in a controlled setting, but not for making strong claims about real ecosystem behavior \cite{Lippe2019, Zhang2020}.
 
-The learning setup introduces further limitations. Although alternating training reduces non-stationarity by freezing opponents within each phase, it remains only an approximation to the full multi-agent learning problem. Background agents do not adapt during a phase; same-species background policies can lag behind the focal learner, and no formal convergence criterion is imposed beyond the fixed training budget. Moreover, training and long-horizon evaluation are not conducted under exactly the same interaction structure, which introduces a distributional gap between learning and final assessment. 
+The learning setup introduces further limitations. Although alternating training reduces non-stationarity by freezing opponents within each phase, it remains only an approximation to the full multi-agent learning problem. Background agents do not adapt during a phase; same-species background policies can lag behind the focal learner, and no formal convergence criterion is imposed beyond the fixed training budget. Moreover, training and long-horizon evaluation are not conducted under exactly the same interaction structure, which introduces a distributional gap between learning and final assessment \cite{Huh2023, Gronauer2022, Amato2024}. 
 
-Finally, the comparison methodology itself remains partly indirect. The ODE and RL pipelines do not share a single common metric set, and there is no exact temporal alignment between continuous ODE time and discrete simulation steps. Cross-model comparison, therefore, relies on post-hoc fitting, trajectory interpretation, and qualitative dynamical correspondence rather than on a perfectly unified quantitative benchmark. For this reason, the results of the thesis should be interpreted as evidence about the comparative usefulness of two modeling approaches in a controlled experimental setting, rather than as a definitive one-to-one validation of one approach against the other.
+Finally, the comparison methodology itself remains partly indirect. The ODE and RL pipelines do not share a single common metric set, and there is no exact temporal alignment between continuous ODE time and discrete simulation steps. Cross-model comparison, therefore, relies on post-hoc fitting, trajectory interpretation, and qualitative dynamical correspondence rather than on a perfectly unified quantitative benchmark. For this reason, the results of the thesis should be interpreted as evidence about the comparative usefulness of two modeling approaches in a controlled experimental setting, rather than as a definitive one-to-one validation of one approach against the other \cite{Rykiel1996, Augusiak2014, DiRenzo2023}.
 
 \section{Experimental setup} \label{experimental}
 
@@ -751,19 +751,19 @@ The RL experiments are conducted entirely in procedurally generated environments
 
 The RL experiments use a common tabular Q-learning configuration together with a small number of protocol-specific overrides. At the global level, the learning rate is set to $\alpha = 0.1$, the discount factor to $\gamma = 0.95$, the default exploration schedule to $\epsilon_{start} = 1.0, \epsilon_{decay} = 0.995$, and $\epsilon_{min} = 0.01$. The tabular state representation contains 540 discrete states, derived from the six-dimensional observation discretization, and the action space contains 10 actions. The standard episode horizon is 500 steps.
 
-The 1v1 warm-up protocol uses the predefined parameters, and it is a one-versus-one training between the predator and prey that is run before starting the complete population training. This protocol also uses a shorter episode horizon of 350 steps. These values are chosen to make early learning in the minimal predator-prey setting less noisy and to encourage faster emergence of basic pursuit and escape behavior.
+The 1v1 warm-up protocol changes $\epsilon_{decay}$ to 0.9985, and a higher $\epsilon_{min}$ equal to 0.02. Furthermore, it also adds a protocol-specific predation bonus of 5.0, which is separate from the hunting success bonus stated on the predator's reward function. This protocol also uses a shorter episode horizon of 350 steps. These values are chosen to make early learning in the minimal predator-prey setting less noisy and to encourage faster emergence of basic pursuit and escape behavior.
 
 In the alternating training protocol, the default Q-learning hyperparameters are retained, but two additional exploration settings are used operationally. First, background agents that act with frozen policies use a near-greedy exploration rate of 0.01. Second, when a checkpoint is loaded between cycles, its effective $\epsilon$ value is capped at 0.3, since exploration is not serialized with the saved Q-table. This prevents previously learned policies from being reset into full re-exploration at the start of a new cycle.
 
-The experimental population and environment settings are also fixed. The 1v1 protocol is run on a $100×100$ grid with one prey and one predator. The main alternating protocol uses a $150×150$ grid with 30 prey and 10 predators. Training is typically organized into 500 episodes per phase, with the total number of cycles chosen experimentally depending on the run. These values define the practical scale at which the RL experiments are conducted.
+The experimental population and environment settings are also fixed. The 1v1 protocol is run on a $100 \times 100$ grid with one prey and one predator. The main alternating protocol uses a $150 \times 150$ grid with 30 prey and 10 predators. Training is typically organized into 500 episodes per phase, with the total number of cycles chosen experimentally depending on the run. These values define the practical scale at which the RL experiments are conducted.
 
 \subsubsection{Training settings}
 
 Two training configurations are used in the experiments. The first is a simplified 1v1 warm-up protocol, and the second is the main alternating multi-agent protocol. Together, they provide a staged training procedure in which basic predator-prey behavior is first learned in a minimal setting and then transferred to a richer ecological environment.
 
-In the 1v1 warm-up protocol, one prey agent and one predator agent are trained simultaneously on a $100×100$ grid with no background population and no reproduction. Each episode ends either when the predator kills the prey or when the maximum horizon of 350 steps is reached. Both agents update their Q-tables after every step, and turn order alternates across episodes so that neither species systematically benefits from acting first. This protocol is generally run for 1500 episodes and is used to generate an initial checkpoint for the main training stage.
+In the 1v1 warm-up protocol, one prey agent and one predator agent are trained simultaneously on a $100 \times 100$ grid with no background population and no reproduction. Each episode ends either when the predator kills the prey or when the maximum horizon of 350 steps is reached. Both agents update their Q-tables after every step, and turn order alternates across episodes so that neither species systematically benefits from acting first. This protocol is generally run for 1500 episodes and is used to generate an initial checkpoint for the main training stage.
 
-The primary training procedure is the alternating protocol, which uses the full $150×150$ environment with 30 prey and 10 predators. Training is organized into cycles, each composed of two phases. In the first phase, the prey agent is the focal learner, and the predator population is frozen. In the second phase, the predator agent becomes the focal learner, and the prey population is frozen. Background agents act during every step but do not update their Q-values. Opponent agents use the frozen policy inherited from the previous phase, while same-species background agents use a frozen copy of the focal learner’s policy taken at the start of the phase. This reduces non-stationarity by ensuring that only one policy changes during a given phase.
+The primary training procedure is the alternating protocol, which uses the full $150 \times 150$ environment with 30 prey and 10 predators. Training is organized into cycles, each composed of two phases. In the first phase, the prey agent is the focal learner, and the predator population is frozen. In the second phase, the predator agent becomes the focal learner, and the prey population is frozen. Background agents act during every step but do not update their Q-values. Opponent agents use the frozen policy inherited from the previous phase, while same-species background agents use a frozen copy of the focal learner’s policy taken at the start of the phase. This reduces non-stationarity by ensuring that only one policy changes during a given phase.
 
 Each phase runs for 500 episodes, unless stated otherwise, and the total number of cycles is chosen experimentally depending on the run. Within each episode, the environment is reset with a deterministic seed, actions are executed, ecological updates are applied, reproduction is resolved, and the focal learner performs a Q-update using the full reward returned for that step. This reward includes both immediate action-related terms and the reproduction bonus when reproduction occurs. Training does not use early stopping; each run proceeds until the configured episode budget is exhausted.
 
@@ -805,15 +805,154 @@ At the same time, some implementation details place limits on strict reproducibi
 
 \section{Results} \label{results}
 
-\subsection{Training behavior}
+\subsection{ODE baseline results}
 
-\subsection{Population dynamics in the RL simulation}
+\subsubsection{Historical case-study fits}
+
+The ODE baseline results serve two complementary purposes in this thesis. First, they show how well classical predator-prey models can reproduce known ecological time series under fitting conditions. Second, they provide an analytical reference point for interpreting the behavior of the RL-based simulator. To this end, two classical models were analyzed throughout: the standard Lotka-Volterra (LV) system and the Rosenzweig-MacArthur-style logistic-prey model (RM). These models were fitted to two historical predator-prey datasets, and the RM model was additionally parameterized from the RL environment configuration to obtain an analytical baseline under simulator-inspired assumptions.
+
+The first part of the ODE analysis examined the behavior of the two classical models on historical ecological data. Two case studies were used: the Hudson Bay hare-lynx series and the Isle Royale moose-wolf series. These datasets play different roles in the analysis. The Hare-Lynx system provides a relatively clean benchmark for oscillatory predator-prey behavior, whereas Isle Royale acts as a more difficult test case in which exogenous ecological shocks and structural changes are known to play an important role.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{img/raw_data.png}
+    \caption{Historical datasets used in the ODE baseline analysis. The figure shows the raw time series and corresponding phase-space trajectories for the Hare-Lynx and Isle Royale systems.}
+    \label{fig:raw_data}
+\end{figure}
+
+For the Hare-Lynx data, both models captured the overall cyclical structure of the observed dynamics well. However, the Lotka-Volterra model consistently performed slightly better than the logistic-prey model. Its prey RMSE was 5.20, compared with 5.63 for the RM model, and its predator RMSE was 3.32, compared with 3.48 for RM. This ranking was also reflected in the AIC values: LV achieved 84.44, whereas RM achieved 89.37. Since the RM model introduces one additional free parameter through the carrying capacity \(K\), the lower AIC of LV indicates that the extra flexibility of the logistic term did not translate into a better fit in this case. In practice, the fitted RM carrying capacity reached the optimization boundary (\(K \approx 600\)), indicating that the logistic term contributed little and that the fitted RM dynamics were close to the unconstrained LV formulation. This is an important result in itself: for the Hare-Lynx series, predator-prey interaction appears to dominate density limitation within the fitted time window.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{img/trajectory_fit.png}
+    \caption{Observed population trajectories and fitted ODE trajectories for the Hare-Lynx and Isle Royale case studies. The LV model slightly outperforms the RM model in both datasets according to RMSE and AIC.}
+    \label{fig:trajectory_fit}
+\end{figure}
+
+For Isle Royale, the picture was very different. Both models fitted the wolf trajectory only moderately well, but neither model reproduced the moose series satisfactorily. The LV model yielded a prey RMSE of 336.91 and a predator RMSE of 7.63, while the RM model yielded a prey RMSE of 342.95 and a predator RMSE of 7.10. Again, LV was preferred by AIC (624.93 versus 628.81), despite RM having the additional prey carrying-capacity term. As in the Hare-Lynx case, the fitted RM carrying capacity was pushed to the search boundary (\(K \approx 5000\)), which again implies that the logistic term was effectively inactive over the fitted range. The poor moose fit is not merely numerical noise, but reflects a structural mismatch between the models and the system. In particular, the historical collapse of the wolf population around the early 1980s, followed by long recovery dynamics, cannot be represented adequately by a two-dimensional deterministic ODE with fixed coefficients. The Isle Royale results therefore serve less as a successful model fit and more as evidence of the limitations of classical aggregate models when ecological dynamics are shaped by strong exogenous disruptions.
+
+These fit differences are summarized in Table \ref{tab:model_comparison}. The table shows that, in both datasets, the simpler Lotka-Volterra model slightly outperformed the logistic-prey extension according to both fit quality and information criteria. This does not mean that LV is a better ecological model in general, but it does indicate that, within the fitted windows used here, the additional RM structure did not provide enough explanatory gain to justify its extra parameter.
+
+\begin{table}[htbp]
+\centering
+\caption{Model comparison for the two historical case studies. Lower RMSE and lower AIC indicate better fit.}
+\label{tab:model_comparison}
+\begin{tabular}{llcccc}
+\hline
+Dataset & Model & $k$ & RMSE prey & RMSE pred & AIC \\
+\hline
+Hare-Lynx & Lotka-Volterra & 4 & 5.205 & 3.318 & 84.443 \\
+Hare-Lynx & Rosenzweig-MacArthur & 5 & 5.627 & 3.484 & 89.373 \\
+Isle Royale & Lotka-Volterra & 4 & 336.913 & 7.635 & 624.929 \\
+Isle Royale & Rosenzweig-MacArthur & 5 & 342.952 & 7.096 & 628.807 \\
+\hline
+\end{tabular}
+\end{table}
+
+Beyond fit quality, the two models also differ structurally in their local stability properties. For both case studies, the Lotka-Volterra equilibrium is a neutral centre, with purely imaginary eigenvalues, implying perpetual oscillations without convergence. By contrast, the RM equilibrium is a stable spiral in both datasets, with small but negative real parts. For Hare-Lynx, the fitted RM equilibrium is approximately \((N^*,P^*)=(30.2,21.0)\), with eigenvalues \(-0.016 \pm 0.671i\). For Isle Royale, the fitted RM equilibrium is approximately \((N^*,P^*)=(961.6,23.2)\), with eigenvalues \(-0.024 \pm 0.262i\). The negative real parts are small, which means that convergence is slow and oscillations remain visible over many cycles. This distinction matters for later comparison with the RL simulator, because it implies that even in the classical model, long horizons are needed to distinguish transient oscillations from genuine long-run stabilization.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{img/phase_portraits.png}
+    \caption{Phase portraits, nullclines, and coexistence equilibria for the fitted LV and RM models. The LV equilibrium is a neutral centre, whereas the RM equilibrium is a stable spiral.}
+    \label{fig:phase_portraits}
+\end{figure}
+
+\begin{table}[htbp]
+\centering
+\caption{Stability summary at the coexistence equilibrium for the fitted historical models.}
+\label{tab:stability_summary}
+\begin{tabular}{llccc}
+\hline
+Dataset & Model & $N^*$ & $P^*$ & Stability \\
+\hline
+Hare-Lynx & Lotka-Volterra & 30.841 & 19.501 & Neutral centre \\
+Hare-Lynx & Rosenzweig-MacArthur & 30.178 & 21.048 & Stable spiral \\
+Isle Royale & Lotka-Volterra & 880.968 & 22.543 & Neutral centre \\
+Isle Royale & Rosenzweig-MacArthur & 961.601 & 23.185 & Stable spiral \\
+\hline
+\end{tabular}
+\end{table}
+
+The sensitivity analysis of the RM model provides an additional perspective on which parameters most strongly determine equilibrium structure. Across both datasets, the strongest effects are associated with the attack rate \(a\), the predator conversion efficiency \(e\), and the predator mortality rate \(d\). Increasing either \(a\) or \(e\) by 10\% reduces equilibrium prey density \(N^*\) by roughly 9.1\% in both case studies, whereas increasing \(d\) by 10\% raises \(N^*\) by 10\%. By contrast, the carrying capacity \(K\) has almost no effect on equilibrium prey density and only a small effect on equilibrium predator density. This follows directly from the equilibrium structure of the RM model: prey equilibrium is set primarily by predation pressure and predator mortality rather than by the environmental carrying capacity itself. In the context of this thesis, this result is especially relevant because it indicates that the balance between predation efficiency and predator maintenance cost is the main structural driver of predator viability, both in the fitted ODE models and in the later RL-calibrated analysis.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{img/sensitivity.png}
+    \caption{Sensitivity of the RM equilibrium to a +10\% increase in each parameter. The dominant effects are associated with attack rate, conversion efficiency, and predator mortality.}
+    \label{fig:sensitivity}
+\end{figure}
+
+\begin{table}[htbp]
+\centering
+\caption{Sensitivity of the Rosenzweig-MacArthur equilibrium to a +10\% increase in each parameter.}
+\label{tab:sensitivity_summary}
+\begin{tabular}{llcc}
+\hline
+Dataset & Parameter & $\Delta N^*$ (\%) & $\Delta P^*$ (\%) \\
+\hline
+Hare-Lynx & $r$ & 0.0 & +10.0 \\
+Hare-Lynx & $K$ & 0.0 & +0.5 \\
+Hare-Lynx & $a$ & -9.1 & -8.7 \\
+Hare-Lynx & $e$ & -9.1 & +0.5 \\
+Hare-Lynx & $d$ & +10.0 & -0.5 \\
+\hline
+Isle Royale & $r$ & 0.0 & +10.0 \\
+Isle Royale & $K$ & 0.0 & +2.2 \\
+Isle Royale & $a$ & -9.1 & -7.1 \\
+Isle Royale & $e$ & -9.1 & +2.2 \\
+Isle Royale & $d$ & +10.0 & -2.4 \\
+\hline
+\end{tabular}
+\end{table}
+
+Taken together, the historical case-study fits show that classical ODEs can reproduce predator-prey oscillations reasonably well in stationary or approximately stationary settings, but struggle when ecological history contains strong external perturbations. The Hare-Lynx series therefore validates the use of ODEs as a meaningful classical reference, while the Isle Royale series reveals the limits of that reference. This contrast is methodologically useful for the rest of the thesis: it shows both why the ODE baseline is worth comparing against, and why a more adaptive simulation framework may be needed when ecological dynamics move beyond the assumptions of fixed-parameter aggregate models.
+
+\subsubsection{RL-calibrated ODE scenario}
+
+In addition to the historical fits, a Rosenzweig-MacArthur model was parameterized directly from the simulator configuration in order to obtain an analytical baseline for the RL environment itself. This RL-calibrated ODE scenario is not intended as a precise ecological fit, but as an order-of-magnitude translation of the simulator’s structural assumptions into a classical aggregate form. In particular, it provides a way to ask what the current RL parameter regime would imply if interpreted through a deterministic predator-prey model.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{img/rl_calibrated.png}
+    \caption{Forward simulation of the RL-calibrated RM model from the initial population split \((30,10)\). The trajectory spirals toward a low-predator equilibrium, indicating structurally weak predator persistence under the calibrated parameter regime.}
+    \label{fig:rl_calibrated}
+\end{figure}
+
+Under the current simulator configuration, the calibrated parameters are \(r=0.4\), \(K=337\), \(a=0.2793\), \(e=0.1\), and \(d=0.7059\). These values produce a coexistence equilibrium at approximately \((N^*,P^*)=(25.3,1.3)\), with eigenvalues \(-0.015 \pm 0.511i\), indicating a stable spiral with slow convergence. The forward simulation was initialized at the current RL-inspired population split \((30,10)\), which places the predator population far above the equilibrium level. As a result, the ODE trajectory shows a large predator overshoot, a sharp prey decline, and then slowly damped oscillations spiraling toward a state with low predator abundance. This behavior is exactly what would be expected from the RM model when a system starts far above its long-run predator equilibrium.
+
+\begin{table}[htbp]
+\centering
+\caption{RL-calibrated Rosenzweig-MacArthur parameter set used as an analytical baseline for the simulator.}
+\label{tab:rl_calibrated_params}
+\begin{tabular}{lcc}
+\hline
+Parameter & Value & Interpretation \\
+\hline
+$r$ & 0.4000 & Prey intrinsic growth rate \\
+$K$ & 337.0 & Prey carrying capacity \\
+$a$ & 0.2793 & Attack rate \\
+$e$ & 0.1000 & Predator conversion efficiency \\
+$d$ & 0.7059 & Predator mortality rate \\
+\hline
+\end{tabular}
+\end{table}
+
+At the same time, this translation must be interpreted carefully. The attack-rate parameter \(a\) is derived geometrically from simulator settings and therefore represents an upper-bound approximation rather than an empirically validated encounter rate. In effect, it assumes idealized hunting efficiency under uniform mixing assumptions, whereas in the actual simulator, predators do not successfully hunt at every step, prey are not uniformly distributed, and encounter opportunities depend strongly on learned behavior and spatial clustering. The calibrated ODE should therefore not be read as an exact macro-level equivalent of the simulator, but as a coarse analytical baseline under optimistic predation assumptions.
+
+Even with this caveat, the key structural result is robust: the calibrated ODE predicts that the current parameter regime is unfavorable to persistent predator abundance. A predator equilibrium of only \(P^* \approx 1.3\) is very small relative to the initialized predator population of 10. In biological terms, the model indicates that predators must operate under very tight energetic constraints. Predator mortality is high relative to energy conversion from prey, so predators can only remain viable if effective predation pressure is sustained at a sufficiently high level. If it is not, the system is drawn toward a regime in which prey remain present, but predator numbers collapse toward near-extinction levels. This is the most important analytical result of the RL-calibrated ODE scenario, because it generates a clear structural prediction before any learned RL dynamics are considered.
+
+This makes the RL-calibrated baseline especially useful for interpreting the simulator results later in the thesis. The ODE does not explain how predator and prey agents behave locally, but it does indicate what broad population outcome should be expected if the simulator’s energetic and interaction coefficients dominate the dynamics in the way assumed by the aggregate model. In that sense, it functions as a structural benchmark: if the later RL experiments also show low predator persistence or frequent predator collapse, that outcome is not merely a learning failure, but a behavior that is already consistent with the underlying system balance implied by the analytical baseline.
+
+\subsection{RL training results}
+
+\subsubsection{1v1 warm-up training}
+
+\subsubsection{Alternating training protocol}
+
+\subsection{Long-horizon RL population dynamics}
 
 \subsection{Comparison with the ODE baselines}
-
-\subsection{Robustness under perturbations}
-
-\subsection{Case-study observations}
 
 \subsection{Summary of findings}
 

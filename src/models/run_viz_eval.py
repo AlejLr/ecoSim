@@ -91,7 +91,7 @@ def track_kill_positions(kill_list: list):
 
 def render_frame(env, step: int, prey_counts: list, pred_counts: list,
                  grid_size: int = GRID_SIZE) -> np.ndarray:
-    """Render current env state → RGB numpy array (H, W, 3)."""
+    """Render current env state -> RGB numpy array (H, W, 3)."""
     fig, ax = plt.subplots(figsize=(5, 5), dpi=80)
     ax.set_xlim(0, grid_size)
     ax.set_ylim(0, grid_size)
@@ -145,7 +145,7 @@ def render_frame(env, step: int, prey_counts: list, pred_counts: list,
     fig.canvas.draw()
     buf = np.frombuffer(fig.canvas.buffer_rgba(), dtype=np.uint8)
     w, h = fig.canvas.get_width_height()
-    img = buf.reshape(h, w, 4)[:, :, :3]  # RGBA → RGB
+    img = buf.reshape(h, w, 4)[:, :, :3]  # RGBA -> RGB
     plt.close(fig)
     return img
 
@@ -157,7 +157,7 @@ def run_viz(prey_path: Path, pred_path: Path, seed: int,
             steps: int, output_dir: Path):
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    print(f"Output → {output_dir}")
+    print(f"Output -> {output_dir}")
 
     prey_policy = load_frozen(prey_path)
     pred_policy = load_frozen(pred_path)

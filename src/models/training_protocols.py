@@ -584,7 +584,8 @@ class AlternatingTrainingProtocol(TrainingProtocol):
         self.num_prey = num_prey
         self.num_predators = num_predators
     
-    def train(self, num_cycles: int = 2, start_from_latest: bool = True) -> Dict:
+    def train(self, num_cycles: int = 2, start_from_latest: bool = True,
+              resume_prey: str = None, resume_predator: str = None) -> Dict:
         """Train with alternating phases and carry agents forward across cycles."""
 
         print(f"\n{'='*70}")
@@ -592,7 +593,9 @@ class AlternatingTrainingProtocol(TrainingProtocol):
         print(f"{'='*70}")
         print(f"Num Cycles: {num_cycles}")
         print(f"Episodes per Agent: {self.num_episodes}")
-        if start_from_latest:
+        if resume_prey or resume_predator:
+            print(f"Cycle 1: resuming from explicitly specified model(s)")
+        elif start_from_latest:
             print(f"Cycle 1: resume from latest saved prey/predator models when available")
         else:
             print(f"Cycle 1: train both species from scratch")
@@ -606,14 +609,27 @@ class AlternatingTrainingProtocol(TrainingProtocol):
             'predator_agents': [],
         }
 
-        prey_agent = self._load_latest_saved_agent('PREY') if start_from_latest else None
-        predator_agent = self._load_latest_saved_agent('PREDATOR') if start_from_latest else None
+        if resume_prey:
+            prey_agent = QLearningAgent.load_model_from_file(str(resume_prey))
+            print(f"✓ Resumed PREY from {resume_prey}")
+        elif start_from_latest:
+            prey_agent = self._load_latest_saved_agent('PREY')
+        else:
+            prey_agent = None
 
-        if prey_agent is not None:
+        if resume_predator:
+            predator_agent = QLearningAgent.load_model_from_file(str(resume_predator))
+            print(f"✓ Resumed PREDATOR from {resume_predator}")
+        elif start_from_latest:
+            predator_agent = self._load_latest_saved_agent('PREDATOR')
+        else:
+            predator_agent = None
+
+        if not resume_prey and prey_agent is not None:
             print("✓ Resumed PREY from latest saved model")
-        if predator_agent is not None:
+        if not resume_predator and predator_agent is not None:
             print("✓ Resumed PREDATOR from latest saved model")
-        if start_from_latest and prey_agent is None and predator_agent is None:
+        if start_from_latest and not resume_prey and not resume_predator and prey_agent is None and predator_agent is None:
             print("(No saved models found; starting from scratch)")
 
         for cycle in range(num_cycles):
@@ -623,14 +639,16 @@ class AlternatingTrainingProtocol(TrainingProtocol):
                 prey_agent = QLearningAgent(agent_id=0, num_actions=10, num_states=540)
                 # epsilon defaults to EPSILON_START = 1.0 for fresh starts
             else:
-                # Epsilon is not saved to disk, so loaded models always have epsilon=1.0.
-                # Cap at 0.3 so the inherited Q-table isn't erased by full re-exploration.
-                prey_agent.epsilon = min(0.3, prey_agent.epsilon)
+                # Clamp epsilon to [0.1, 0.3] at the start of each new cycle.
+                # Floor of 0.1 ensures the agent can still explore (epsilon decayed
+                # to epsilon_min by end of previous cycle); ceiling of 0.3 prevents
+                # re-exploration from erasing the inherited Q-table.
+                prey_agent.epsilon = min(0.3, max(0.1, prey_agent.epsilon))
 
             if predator_agent is None:
                 predator_agent = QLearningAgent(agent_id=0, num_actions=10, num_states=540)
             else:
-                predator_agent.epsilon = min(0.3, predator_agent.epsilon)
+                predator_agent.epsilon = min(0.3, max(0.1, predator_agent.epsilon))
 
             print(f"PHASE A: Training PREY (cycle {cycle + 1})...")
             prey_opponent = predator_agent
